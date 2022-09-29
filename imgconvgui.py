@@ -7,21 +7,20 @@ from typing import Literal, Tuple
 from PIL import Image
 
 filetypes={
-    '*.png': "Portable Network Graphics", 
-    '*.jpg': "Joint Photographic Experts Group", 
-    '*.jgeg': "Joint Photographic Experts Group", 
-    '*.tiff': "Tagged Image File Format", 
-    '*.webp': "WebP Image Format", 
-    '*.svg': "Scalable Vector Graphics", 
-    '*.sun': "SUN Rasterfile", 
-    'apng': "Animated PNG", 
-    '*.gif': "Graphics Interchange Format", 
-    '*.bmp': "Bitmap Image", 
-    '*.psd': "Adobe Photoshop bitmap", 
-    '*.heif': "High Efficiency Image File", 
-    '*.jpe': "Joint Photographic Experts Group", 
-    '*.jfif': "Joint Photographic Experts Group", 
-    '*.jfi': "Joint Photographic Experts Group"
+    '*.*'   : "All files",
+    '*.png' : "Portable Network Graphics (.png)", 
+    '*.jpg' : "Joint Photographic Experts Group (.jpg)", 
+    '*.jgeg': "Joint Photographic Experts Group (.jpeg)", 
+    '*.tiff': "Tagged Image File Format (.tiff)",
+    '*.webp': "WebP Image Format (.webp)", 
+    '*.svg' : "Scalable Vector Graphics (.svg)", 
+    '*.apng': "Animated PNG (.apng)", 
+    '*.gif' : "Graphics Interchange Format (.gif)", 
+    '*.bmp' : "Bitmap Image (.bmp)", 
+    '*.heif': "High Efficiency Image File (.heif)", 
+    '*.jpe' : "Joint Photographic Experts Group (.jpe)", 
+    '*.jfif': "Joint Photographic Experts Group (.jfif)", 
+    '*.jfi' : "Joint Photographic Experts Group (.jfi)"
 }
 r=Tk()
 r.title("Light Image Conversion")
@@ -38,9 +37,11 @@ def o(type: Literal['Files', 'Folder']):
     match type:
         case "Files":
             files=filedialog.askopenfilenames(title="Open multiple files...", parent=r, filetypes=[(filetypes[a], a) for a in filetypes.keys()])
+            if files == '' or files == (): return
             filelist=files
         case "Folder":
             folder=filedialog.askdirectory(title="Open folder..", mustexist=True, parent=r)
+            if folder == '': return
             filelist=tuple([i for i in os.listdir(folder) if os.path.isfile(os.path.join(folder, i)) and i.split(".")[-1] == extfrom])
             os.chdir(folder)
     Label(r, text="Files:").pack()
