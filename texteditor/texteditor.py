@@ -1,5 +1,4 @@
-import json, os, re, traceback, idlelib.colorizer as ic, idlelib.percolator as ip
-import threading
+import json, os, re, traceback
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
@@ -128,7 +127,6 @@ class Window:
             b.bind("<Control-Alt-s>", self.saveas)
             b.bind("<Control-F5>", None)#le run
         self.tablore.bind("<<NotebookTabChanged>>", self.tabchange)
-        ip.Percolator(self.variables[f"text{self.index}"]).insertfilter(self.cdg)
         self.r.mainloop()
 
     def _on_change(self, event):
@@ -244,7 +242,7 @@ class Window:
         self.variables[f"text{self.index}"].bind("<Configure>", self._on_change)
         
         textobj.pack(fill='both')
-        self.variables[f"text{self.index}"].pack(fill='both')
+        self.variables[f"text{self.index}"].pack(expand=True, fill='both')
 
         self.tablore.add(self.variables[f"tab{self.index}"],text=f"untitled-{int(self.index)+1}")
         self.tablore.select(self.variables[f"tab{self.index}"])
