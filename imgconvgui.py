@@ -38,7 +38,7 @@ def o(type: Literal['Files', 'Folder']):
         case "Files":
             files=filedialog.askopenfilenames(title="Open multiple files...", parent=r, filetypes=[(filetypes[a], a) for a in filetypes.keys()])
             if files == '' or files == (): return
-            filelist=files
+            filelist=tuple([i for i in os.listdir(files) if os.path.isfile(os.path.join(files, i)) and i.split(".")[-1] == extfrom])
         case "Folder":
             folder=filedialog.askdirectory(title="Open folder..", mustexist=True, parent=r)
             if folder == '': return

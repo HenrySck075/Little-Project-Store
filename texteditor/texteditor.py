@@ -252,9 +252,6 @@ class Window:
             "directory": ""
         }
 
-
-        
-
     def closetab(self) -> int | None:
         if self.variables[f"text{self.tabindex}"].get("1.0", "end-1c") != self.presave_content[self.tabindex]["content"]:
             confirm: bool | None=messagebox.askyesnocancel("Unsaved changes", f"Do you want to save changes to {self.presave_content[self.tabindex]['name']}?")
@@ -267,7 +264,6 @@ class Window:
         else:
             self.last_closed.append(self.variables[f"tab{self.tabindex}"])
             self.tablore.hide(self.variables[f"tab{self.tabindex}"])
-        del self.fileobj
         if len(self.tablore.tabs()) == 0: self.r.destroy()
             
 
