@@ -29,7 +29,6 @@ class LineCounter:
             if args[0] == 'delete' and (args[1] == 'sel.first' and args[2] == 'sel.last') and not self.tag_ranges('sel'): return
             
             cmd = (self._orig,) + args
-            print(cmd)
             result = self.tk.call(cmd)
             
             if (args[0] in ("insert", "replace", "delete") or
@@ -152,7 +151,7 @@ class Window:
         if self.fileobj[self.tabindex] != "":
             self.filename = os.path.basename(self.fileobj[self.tabindex])
             self.dirname = os.path.dirname(self.fileobj[self.tabindex])
-            file = open(self.fileobj, encoding="utf-8")
+            file = open(self.fileobj[self.tabindex], encoding="utf-8")
             self.variables[f"text{self.tabindex}"].delete('1.0', "end-1c")
             self.variables[f"text{self.tabindex}"].insert(tk.INSERT, file.read())
             self.r.title(f'0-budget Text Editor: {self.filename}')
