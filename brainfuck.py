@@ -67,8 +67,6 @@ def exec(code, inLoop=0):
                 eoloop = [u for u, y in enumerate(codeinput) if y == ']'][bracketidx]
                 for j in range(afloop+1, eoloop+1):
                     moarlist.append(codeinput[j])
-            # cmd = 'title "instruction after bracket: ', codeinput[afloop+1], " | instruction at closed bracket: ", codeinput[eoloop], ' | cell before loop: ', str(loop), ' | loop content: ', ''.join(moarlist), '"'
-            # os.system(''.join(cmd))
             if int(cells[loop]) != 0:
                 exec(moarlist, 1)
             if int(cells[loop]) == 0:
