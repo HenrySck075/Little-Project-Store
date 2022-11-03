@@ -1,4 +1,5 @@
 #+-<>[].,e
+import sys
 import time
 
 from termcolor import colored
@@ -89,10 +90,12 @@ def exec(code, inLoop=0):
             pass
         cellsValueReport = "Cells value: ", ' '.join(cells)
         numberOutputReport = "Number output: ", out
-        textOutputReport = "Text output: ", outtxt
+        textOutputReport = "\nText output: ", outtxt
         currentCellReport = "Current cell: ", str(cellid+1)
+        for i in range(2):
+            sys.stdout.write("\x1b[1A\x1b[2K")
         line = colored(''.join(cellsValueReport), "magenta"), " | ", colored(''.join(currentCellReport), "cyan" ), " | ", colored(''.join(numberOutputReport), "green"), " | ", colored(''.join(textOutputReport), "red")#, " | Current idx: ", str(bracketidx), " | Code: ", ''.join(codeinput), "            " 
-        print(''.join(line), end="\r")
+        print(''.join(line))
         if delay == 0:
             pass
         else:
