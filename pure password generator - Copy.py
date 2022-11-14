@@ -8,7 +8,5 @@ text = [
 ]
 
 text2 = list(''.join(text))
-passstringitem = []
-for i in range(random.randint(10,26)):
-    passstringitem.append(random.choice(text2))
+passstringitem = random.choices(text2,k=random.randint(10,26))
 print(''.join(passstringitem))
