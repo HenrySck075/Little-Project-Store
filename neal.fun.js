@@ -36,7 +36,8 @@ function wait(ms) {
 }
 function captcha() {
     let str = $(".captcha-img").src.split("/").slice(-1)[0].split(".png")[0]
-    let dcapt = str.match(/\d+/)
+    let dcapt = str.matchAll(/\d+/g)
+    console.log(dcapt)
     let dint = 0
     for (let i of dcapt) {dint = dint + parseInt(i)}
     // reroll if sum is higher than 25
@@ -44,8 +45,17 @@ function captcha() {
         $(".captcha-refresh").click();
         setTimeout(captcha, 1000)
     }
-    console.log("1".repeat(dint))
-    if (dint != 0) update(password.replace("1".repeat(dint),"")+str)
+    else if (dint != 0) update(password.replace("1".repeat(dint),"")+str)
+    else update(password+str)
+}
+let saved = password.slice()
+function geoguess(idx) {
+    let i = countries[idx]
+    update(password+" "+i.toLowerCase())
+    setTimeout(()=>{
+        if ($(".geo .rule-icon").src.includes("checkmark.svg")) {update(saved+" "+i.toLowerCase())}
+        else geoguess(idx+1)
+    }, 100)
 }
 var span;
 let stat = document.createElement("p")
@@ -54,7 +64,7 @@ $(".password-wrapper").insertBefore(stat,$(".password-box"))
 stat.innerText = "Please enter anything to the box (i cant do that) (why the heck neal use br instead of empty span)"
 //init
 waitForElm("[contenteditable=true] p span").then(e => {
-    span = e;update('maypepsi1111111111111111111111111AVIIVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑');
+    span = e;update('maypepsi11111111111111111111111110AVIIVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑');
 })
 //captcha
 waitForElm('.captcha-img').then(() => {captcha()})
@@ -67,19 +77,15 @@ waitForElm('.wordle').then(()=>{
     r.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             update(password+JSON.parse(r.responseText).answer)
+            stat.innerText="Waiting..."
         }
     };
 })
 //geoguess
 waitForElm('.geo').then(()=>{
     setTimeout(()=>{
+        saved=password.slice()
         stat.innerText="Cycling through list of supported guesses..."
-        let saved = password.slice()
-        for (let i of countries) {
-            update(password+" "+i.toLowerCase())
-            setTimeout(()=>{
-                if ($(".geo .rule-icon").src.includes("checkmark.svg")) {update(saved+" "+i.toLowerCase())}
-            },400)
-        }
-    },6000)
+        geoguess(0)
+    },4000)
 })
