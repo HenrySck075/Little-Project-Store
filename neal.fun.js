@@ -98,6 +98,6 @@ function ThePasswordGame() {
     //chess
     waitForElem(".chess-wrapper").then(wrap=>{
 	let idx = + wrap.getElementsByTagName("img").src.split("puzzle").slice(-1)[0].split(".png")[0]
-	    update(password+chessSolutions[idx])
+	    update(password+chessSolutions[idx-1])
     })
 }
