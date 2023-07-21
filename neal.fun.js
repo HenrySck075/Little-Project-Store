@@ -42,7 +42,7 @@ function ThePasswordGame() {
         let dint = 0
         for (let i of dcapt) { dint = dint + parseInt(i) }
         // reroll if sum is higher than 25
-        if (dint > 25) {
+        if (dint > 21) {
             $(".captcha-refresh").click();
             setTimeout(captcha, 1000)
         }
@@ -70,7 +70,7 @@ function ThePasswordGame() {
 	span.addEventListener("DOMSubtreeModified", ()=>{
 	    password=span.innerText
 	})
-	update('maypepsi11111111111111111111111110AVIIVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑');
+	update('maypepsi1111111111111111111114AVIIVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑');
     })
     //captcha
     waitForElm('.captcha-img').then(() => { captcha() })
@@ -96,8 +96,8 @@ function ThePasswordGame() {
         }, 4000)
     })
     //chess
-    waitForElem(".chess-wrapper").then(wrap=>{
-	let idx = + wrap.getElementsByTagName("img").src.split("puzzle").slice(-1)[0].split(".png")[0]
+    waitForElem(".chess").then(()=>{
+	let idx = + $(".chess-wrapper img").src.split("puzzle").slice(-1)[0].split(".png")[0]
 	    update(password+chessSolutions[idx-1])
     })
 }
