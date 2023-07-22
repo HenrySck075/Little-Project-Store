@@ -27,34 +27,32 @@ function ThePasswordGame() {
     let countries= ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "East Timor", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Korea North", "Korea South", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macedonia", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "St Lucia", "Samoa", "San Marino", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Swaziland", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Trinidad & Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "America", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe", "England", "United States", "Britain"]
     let states = {
         boldVowels: false,
-	wingdings: false
+	    wingdings: false
     }
     //https://stackoverflow.com/questions/5525071/how-to-wait-until-an-element-exists
     function update(v) {
 	//let untagged = v.slice()
 	if (states.boldVowels) {
 	    for (let i of vowels) { 
-		v = v.replaceAll(i, `<strong>${i}</strong>`) 
-		v = v.replaceAll(i.toUpperCase(), `<strong>${i.toUpperCase()}</strong>`) 
-	    }
+            v = v.replaceAll(i, `<strong>${i}</strong>`) 
+            v = v.replaceAll(i.toUpperCase(), `<strong>${i.toUpperCase()}</strong>`) 
+            }
         }
         pswbox.innerHTML = v
     };
-    function wait(ms) {
-        var start = Date.now(),
-            now = start;
-        while (now - start < ms) {
-            now = Date.now();
+    // fix atomic number
+    function fixAtomic(_) {
+        let pswdh=password.replace("H","")
+        let reg = pswdh.match(/H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Sc|Ti|V|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ga|Ge|As|Se|Br|Kr|Rb|Sr|Y|Zr|Nb|Mo|Tc|Ru|Rh|Pd|Ag|Cd|In|Sn|Sb|Te|I|Xe|Cs|Ba|La|Ce|Pr|Nd|Pm|Sm|Eu|Gd|Tb|Dy|Ho|Er|Tm|Yb|Lu|Hf|Ta|W|Re|Os|Ir|Pt|Au|Hg|Tl|Pb|Bi|Po|At|Rn|Fr|Ra|Ac|Th|Pa|U|Np|Pu|Am|Cm|Bk|Cf|Es|Fm|Md|No|Lr|Rf|Db|Sg|Bh|Hs|Mt|Ds|Rg|Cn|Nh|Fl|Mc|Lv|Ts|Og|Uue/g)
+        console.log(reg)
+        let atomic = 0
+        if (reg != null) {
+            for (let i of reg) {
+                atomic += atomics[i]
+            }
         }
-    }
-    // rule 16 can causes rule 18 to break so we'll fix that here
-    function fixAtomic(str) {
-	    setTimeout(()=>{
-		if ($(".atomic-number .rule-top img").src.includes("error")) {
-		    let atomic = atomics[str.match(/H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Sc|Ti|V|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ga|Ge|As|Se|Br|Kr|Rb|Sr|Y|Zr|Nb|Mo|Tc|Ru|Rh|Pd|Ag|Cd|In|Sn|Sb|Te|I|Xe|Cs|Ba|La|Ce|Pr|Nd|Pm|Sm|Eu|Gd|Tb|Dy|Ho|Er|Tm|Yb|Lu|Hf|Ta|W|Re|Os|Ir|Pt|Au|Hg|Tl|Pb|Bi|Po|At|Rn|Fr|Ra|Ac|Th|Pa|U|Np|Pu|Am|Cm|Bk|Cf|Es|Fm|Md|No|Lr|Rf|Db|Sg|Bh|Hs|Mt|Ds|Rg|Cn|Nh|Fl|Mc|Lv|Ts|Og|Uue/g)[0]]
-		    update(password.replace("H".repeat(atomic),""))
-		}
-	    }, 100)
+        console.log(atomic)
+        update(pswdh+"H".repeat(175).replace("H".repeat(atomic),""))
     }
     function captcha() {
         let str = $(".captcha-img").src.split("/").slice(-1)[0].split(".png")[0]
@@ -67,8 +65,7 @@ function ThePasswordGame() {
             $(".captcha-refresh").click();
             setTimeout(captcha, 1000)
         }
-        else if (dint != 0) update(password.replace("1".repeat(dint), "") + str)
-        else update(password + str)
+        else {update(password.replace("1".repeat(dint), "") + " " + str)}
     }
     let saved = password.slice()
     function geoguess(idx) {
@@ -87,7 +84,7 @@ function ThePasswordGame() {
     pswbox.addEventListener("DOMSubtreeModified", () => {
         password = pswbox.innerText
     })
-    update('I am loved maypepsi111111111111111111111 4AXXXVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑 🏋️‍♂️🏋️‍♂️🏋️‍♂️'+"H".repeat(122));
+    update('i am loved maypepsi111111111111111111111 4AXXXVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑 🏋️‍♂️🏋️‍♂️🏋️‍♂️');
     //captcha
     waitForElm('.captcha-img').then(() => { captcha() })
     //wordle
@@ -110,7 +107,7 @@ function ThePasswordGame() {
             saved = password.slice()
             stat.innerText = "Cycling through list of supported guesses..."
             geoguess(0)
-        }, 100)
+        }, 800)
     })
     //chess
     //TODO: debug on pc this thing have 50% chance to crash
@@ -122,19 +119,30 @@ function ThePasswordGame() {
             let dint = 0
             for (let i of dcapt) { dint = dint + parseInt(i) }
             update(password.replace("1".repeat(dint), "") + str)
-	    fixAtomic(str)
+	        fixAtomic(str)
         }, 100)
     })
     //paul
-    waitForElm(".egg").then(() => { update(password + "🥚🐛🐛🐛") })
+    waitForElm(".egg").then(() => { 
+        stat.innerText = "Doing other random stuff"
+        update(password + "🥚🐛🐛🐛") 
+    })
     //vowels
     waitForElm(".bold-vowels").then(() => {
-	states.boldVowels = true
-	update(password)
+	    states.boldVowels = true
+	    update(password)
     })
     //fire
     waitForElm(".fire").then(()=>{
-	update(password.replaceAll("🔥",""))
+	    update(password.replaceAll("🔥",""))
+    })
+    //youtube
+    waitForElm(".youtube").then(()=>{
+        let desc = $(".youtube .rule-desc div").innerText.split(" ")
+        let [min, sec] = [desc[8], desc[10]]
+        let h = " youtu.be/"+ytDurations[min+":"+sec]
+        update(password+h)
+        fixAtomic(h)
     })
 };
 ThePasswordGame()
