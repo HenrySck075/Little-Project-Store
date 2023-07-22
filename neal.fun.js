@@ -42,17 +42,32 @@ function ThePasswordGame() {
     };
     // fix atomic number
     function fixAtomic(_) {
-        let pswdh=password.replace("H","")
-        let reg = pswdh.match(/H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Sc|Ti|V|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ga|Ge|As|Se|Br|Kr|Rb|Sr|Y|Zr|Nb|Mo|Tc|Ru|Rh|Pd|Ag|Cd|In|Sn|Sb|Te|I|Xe|Cs|Ba|La|Ce|Pr|Nd|Pm|Sm|Eu|Gd|Tb|Dy|Ho|Er|Tm|Yb|Lu|Hf|Ta|W|Re|Os|Ir|Pt|Au|Hg|Tl|Pb|Bi|Po|At|Rn|Fr|Ra|Ac|Th|Pa|U|Np|Pu|Am|Cm|Bk|Cf|Es|Fm|Md|No|Lr|Rf|Db|Sg|Bh|Hs|Mt|Ds|Rg|Cn|Nh|Fl|Mc|Lv|Ts|Og|Uue/g)
-        console.log(reg)
+        let reg = password.match(/He|Li|Be|Ne|Na|Mg|Al|Si|Cl|Ar|Ca|Sc|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ga|Ge|As|Se|Br|Kr|Rb|Sr|Zr|Nb|Mo|Tc|Ru|Rh|Pd|Ag|Cd|In|Sn|Sb|Te|Xe|Cs|Ba|La|Ce|Pr|Nd|Pm|Sm|Eu|Gd|Tb|Dy|Ho|Er|Tm|Yb|Lu|Hf|Ta|Re|Os|Ir|Pt|Au|Hg|Tl|Pb|Bi|Po|At|Rn|Fr|Ra|Ac|Th|Pa|Np|Pu|Am|Cm|Bk|Cf|Es|Fm|Md|No|Lr|Rf|Db|Sg|Bh|Hs|Mt|Ds|Rg|Cn|Nh|Fl|Mc|Lv|Ts|Og|Uue|P|S|K|V|Y|W|U|B|C|N|O|F|I/g)
         let atomic = 0
         if (reg != null) {
             for (let i of reg) {
                 atomic += atomics[i]
             }
         }
+        let hydros = password.match(/H/g).length
+
+        console.log(reg)
         console.log(atomic)
-        update(pswdh+"H".repeat(175).replace("H".repeat(atomic),""))
+        if (atomic > 200) {
+            let savedHydros = + hydros.toString()
+            for (let i of atomics) {
+                let h = reg.findIndex(i)
+                if (h != -1) {
+                    atomic-=h
+                    savedHydros+=h
+                    reg=reg.splice(atomic, 1)
+                    if (atomic <= 200) break
+                }
+            }
+            password = password.replace("H".repeat(hydros),"H".repeat(savedHydros))
+        }
+        if (hydros+atomic <= 200) update(password.replace("H".repeat(atomic),""))
+        else update(password.replace("H".repeat(hydros),"H".repeat(200-atomic)))
     }
     function captcha() {
         let str = $(".captcha-img").src.split("/").slice(-1)[0].split(".png")[0]
@@ -84,7 +99,7 @@ function ThePasswordGame() {
     pswbox.addEventListener("DOMSubtreeModified", () => {
         password = pswbox.innerText
     })
-    update('i am loved maypepsi111111111111111111111 4AXXXVHe🌑🌘🌗🌖🌕🌔🌓🌒🌑 🏋️‍♂️🏋️‍♂️🏋️‍♂️');
+    update('i am loved maypepsi111111111111111111111 4AXXXVBe🌑🌘🌗🌖🌕🌔🌓🌒🌑 🏋️‍♂️🏋️‍♂️🏋️‍♂️'+"H".repeat(173));
     //captcha
     waitForElm('.captcha-img').then(() => { captcha() })
     //wordle
@@ -141,7 +156,7 @@ function ThePasswordGame() {
         let desc = $(".youtube .rule-desc div").innerText.split(" ")
         let [min, sec] = [desc[8], desc[10]]
         let h = " youtu.be/"+ytDurations[min+":"+sec]
-        update(password+h)
+        update(password.replace("Be","")+h)
         fixAtomic(h)
     })
 };
