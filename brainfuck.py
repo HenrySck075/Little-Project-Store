@@ -1,6 +1,6 @@
 #code = print("brainfuck code here (Ctrl-D to continue):\n")
 import random, re, time
-from prompt_toolkit import PromptSession
+from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.styles import style_from_pygments_cls, Style
 from pygments.styles.colorful import ColorfulStyle
@@ -28,7 +28,7 @@ def bfexec(c:str,challengeMode=False,returnType="int") -> Tuple[Dict[str,int], s
             case ">": pointer = (pointer+1)%(len(cells)+1)
             case ".": 
                 char = chr(cells[pointer]+(32 if challengeMode else 0))
-                print(char,end="")
+                #print(char,end="")
                 stringout+=char
                 digitout+=cells[pointer]
             case ",": 
@@ -50,6 +50,7 @@ def bfexec(c:str,challengeMode=False,returnType="int") -> Tuple[Dict[str,int], s
                     idx = loops[ignore]
         idx+=1
         if challengeMode:
+            print_formatted_text(c)
             time.sleep(.1)
     ret = None
     if returnType == "int": ret = digitout
