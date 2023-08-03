@@ -49,9 +49,9 @@ def bfexec(c:str,challengeMode=False,returnType="int") -> Tuple[Dict[str,int], s
                 else:
                     idx = loops[ignore]
         idx+=1
-        if challengeMode:
-            print_formatted_text(c)
-            time.sleep(.1)
+        # if challengeMode:
+        #     print_formatted_text(c)
+        #     time.sleep(.1)
     ret = None
     if returnType == "int": ret = digitout
     if returnType == "str": ret = stringout
