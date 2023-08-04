@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait as driverWait
 from selenium.webdriver.remote.webelement import WebElement
 
-import json
+import json, traceback
 from bs4 import BeautifulSoup
 
 resName = "Minor VTubers.json"
@@ -23,12 +23,31 @@ urlMap = {
     "17live":"17.live",
     "SHOWROOM":"showroom-live.com",
     "NicoNico":"nicovideo.jp",
-    "OPENREC.tv":"openrec.tv"
+    "OPENREC.tv":"openrec.tv",
+    "Mildom":"mildom.com",
+    "REALITY":"reality.app",
+    "Mixch":"mixch.tv",
+    "Mirrativ":"mirrativ.com",
+    "bilibili":"bilibili.com",
+    "fanbox":"fanbox.cc",
+    "TikTok":"tiktok.com",
+    "LINE Live":"live.line.me",
+    "YouTube":"youtube.com",
+    "Twitter":"twitter.com" #"x.com" # elon dum
 }
 def getServiceByUrl(url):
-    for i in urlMap:
-        if urlMap[i] in url: return i
-    else: return ""
+    if all(i not in url for i in urlMap.values()):
+        print(f"An undefined service detected: {url}")
+        name = input("Please enter the service name: ")
+        host = input("Please enter host url: ")
+        urlMap[name] = host
+        return name
+
+    else:
+        for i in urlMap:
+            if urlMap[i] in url: return i
+        else: return ""
+
 
 urls = [
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(A%E2%80%94B)",
@@ -46,49 +65,15 @@ urls = [
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(Y%E2%80%94Z)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(other)"
 ]
+options = webdriver.ChromeOptions() if termux else webdriver.EdgeOptions()
+options.page_load_strategy = "eager"
+options.add_argument("--no-sandbox") 
+options.add_argument("--disable-dev-shm-usage") 
+options.add_argument("--disable-logging") 
+#options.add_argument("--headless=new")
+driver = webdriver.Edge(options) if not termux else webdriver.Chrome(options=options)
 
-class SoupSyntaxWebElement:
-    "nerissa"
-    def __init__(self,a:WebElement):
-        self.elem = a
-    
-    def select(self, selector:str): 
-        """Finds a list of elements within this element's children by CSS selector.
-
-        :Args:
-            - selector - CSS selctor string, ex: 'a.nav#home'
-        """
-
-        return [SoupSyntaxWebElement(i) for i in self.elem.find_elements_by_css_selector(selector)]
-    
-    def select_one(self, selector:str): 
-        """Finds element within this element's children by CSS selector.
-
-        :Args:
-            - selector - CSS selctor string, ex: 'a.nav#home'
-        """
-        if (x:=self.elem.find_element_by_css_selector(selector)) == None: return SoupSyntaxWebElement(x)
-        else: return None
-
-    @property
-    def children(self):
-        "Avoid using this shit as much as possible"
-        return [SoupSyntaxWebElement(i) for i in self.elem.find_elements_by_css_selector("*")]
-
-    @property
-    def text(self):
-        return self.elem.text
-    
-    def attr(self, attribute):
-        return self.elem.get_attribute(attribute)
-
-try:
-    chrOpt = webdriver.ChromeOptions()
-    chrOpt.page_load_strategy = "eager"
-    chrOpt.add_argument("--no-sandbox") 
-    chrOpt.add_argument("--disable-dev-shm-usage") 
-    chrOpt.add_argument("--headless=new")
-    driver = webdriver.Edge("msedgedriver.exe") if not termux else webdriver.Chrome(options=chrOpt)
+def minor_vtubers():
     for url in urls:
         print(f"---------- Fetching {url}")
         driver.get(url)
@@ -98,7 +83,8 @@ try:
         for idx, item in enumerate(BeautifulSoup(tableBody.get_attribute("outerHTML")).select("tr")):
             print(f"---------- Item ID: {idx}")
             items = item.select("td")
-            if len(items) < 2: continue
+            cursed = len(items)
+            if cursed < 2: continue
             entry={}
             
             try: temp = items[1].select_one("b").text
@@ -111,45 +97,55 @@ try:
             del temp
 
             langs = items[2].text
-
-            try:entry["ytUrl"] = items[3].select_one("a").attrs["href"]
-            except:entry["ytUrl"] = ""
             
-            otherUrls = {}
-            temp = items[4]
-            a = temp.select("*")
-            # nah bro :skull:
-            if len(a) > 0:
-                otherUrls[getServiceByUrl(a[0].attrs["href"])] = a[0].attrs["href"]
-                if (the:=temp.select_one("p")) != None:
-                    the = the.select("*")
-                    for i in range(len(the)):
-                        otherUrls[(the[i].attrs["href"])] = the[i].attrs["href"]
-            entry["otherUrls"] = otherUrls
+            vtUrls = {}
+            
+            try:vtUrls["YouTube"] = items[3].select_one("a").attrs["href"]
+            except:pass
+            
+            if cursed >=5:
+                temp = items[4]
+                a = temp.select("a")
+                # nah bro :skull:
+                if len(a) > 0:
+                    vtUrls[getServiceByUrl(a[0].attrs["href"])] = a[0].attrs["href"]
+                    if (the:=temp.select_one("p")) != None:
+                        the = the.select("a")
+                        for i in range(len(the)):
+                            vtUrls[getServiceByUrl(the[i].attrs["href"])] = the[i].attrs["href"]
+            temp = None
             del temp
 
-            try:
-                # TODO: wacky language
+            if cursed >= 6:
                 temp = items[5]
-                entry["twitterUrl"] = temp.select_one("a").attrs["href"]
-                if (the:=temp.select_one("p")) != None:
-                    entry["twitterUrl"] = [entry["twitterUrl"]]
-                    the = the.select("*")
-                    for i in range(len(the)):
-                        entry["twitterUrl"].append(the[i].attrs["href"])
-                del temp
-            except: entry["twitterUrl"] = ""
-
-            try: entry["notes"] = items[7].text.replace("\n"," ")
-            except: entry["notes"] = ""
+                test = temp.select_one("a")
+                if test != None:
+                    vtUrls["twitter"] = test.attrs["href"]
+                    if (the:=temp.select_one("p")) != None:
+                        vtUrls["twitter"] = [vtUrls["twitter"]]
+                        the = the.select("a")
+                        for i in range(len(the)):
+                            vtUrls["twitter"].append(the[i].attrs["href"])
+                    del temp
+                else: 
+                    vtUrls["twitter"] = ""
+                    del test
+            
+            entry["urls"] = vtUrls
+            
+            if cursed >=8:
+                entry["notes"] = items[7].text.replace("\n"," ")
+            else: entry["notes"] = ""
 
             vtubers.append(entry)
 
         json.dump(vtubers, open(resName,"w"), indent=4)
 
+try: minor_vtubers()
 except KeyboardInterrupt:
     print("Keyboard interrupted")
-    driver.close()
+except Exception as e:
+    traceback.print_exc(file=open("exceptionContent","w",encoding="utf-8"))
 finally: 
     driver.close()
     
