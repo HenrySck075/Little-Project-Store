@@ -1,20 +1,37 @@
+# to search for major VTubers, use the All Pages page
+
+# if termux (termux-clipboard-set is just 1 command) (you can troll this by creating a script with same name in PATH idk)
+termux=(__import__("shutil").which("termux-clipboard-set") is not None)
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait as driverWait
 from selenium.webdriver.remote.webelement import WebElement
+
 import json
-from pygments.lexers.data import JsonLexer
-from pygments.formatters import NullFormatter
-from pygments import highlight
 from bs4 import BeautifulSoup
 
-resName = "inaccurate list of VTubers, like, it doesn't update new vtuber since march 2023.json"
-vtubers = json.load(open(resName,"r"))
+resName = "Minor VTubers.json"
+try:vtubers = json.load(open(resName,"r"))
+except:vtubers=[]
 rb = lambda s: s.replace("(", "").replace(")", "")
 "Remove curved brackets"
-#"https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(A%E2%80%94B)",
+
+urlMap = {
+    "Twitch":"twitch.tv",
+    "Twitcasting":"twitcasting.tv",
+    "17live":"17.live",
+    "SHOWROOM":"showroom-live.com",
+    "NicoNico":"nicovideo.jp",
+    "OPENREC.tv":"openrec.tv"
+}
+def getServiceByUrl(url):
+    for i in urlMap:
+        if urlMap[i] in url: return i
+    else: return ""
+
 urls = [
+    "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(A%E2%80%94B)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(C%E2%80%94D)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(E%E2%80%94F)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(G%E2%80%94H)",
@@ -66,7 +83,12 @@ class SoupSyntaxWebElement:
         return self.elem.get_attribute(attribute)
 
 try:
-    driver = webdriver.Edge("msedgedriver.exe")
+    chrOpt = webdriver.ChromeOptions()
+    chrOpt.page_load_strategy = "eager"
+    chrOpt.add_argument("--no-sandbox") 
+    chrOpt.add_argument("--disable-dev-shm-usage") 
+    chrOpt.add_argument("--headless=new")
+    driver = webdriver.Edge("msedgedriver.exe") if not termux else webdriver.Chrome(options=chrOpt)
     for url in urls:
         print(f"---------- Fetching {url}")
         driver.get(url)
@@ -77,7 +99,6 @@ try:
             print(f"---------- Item ID: {idx}")
             items = item.select("td")
             if len(items) < 2: continue
-            print(len(items))
             entry={}
             
             try: temp = items[1].select_one("b").text
@@ -99,36 +120,36 @@ try:
             a = temp.select("*")
             # nah bro :skull:
             if len(a) > 0:
-                otherUrls[temp.text.replace(a[0].text,"").replace(" ", "").replace("\n\n\n","")] = a[0].attrs["href"]
+                otherUrls[getServiceByUrl(a[0].attrs["href"])] = a[0].attrs["href"]
                 if (the:=temp.select_one("p")) != None:
                     the = the.select("*")
                     for i in range(len(the)):
-                        if i%2 == 0: otherUrls[rb(the[i].text)] = the[i].attrs["href"]
+                        otherUrls[(the[i].attrs["href"])] = the[i].attrs["href"]
             entry["otherUrls"] = otherUrls
             del temp
 
-            try: 
+            try:
+                # TODO: wacky language
                 temp = items[5]
                 entry["twitterUrl"] = temp.select_one("a").attrs["href"]
                 if (the:=temp.select_one("p")) != None:
-                    entry["twitterUrl"] = {rb(item.select("*")[1].text).replace(" ",""): entry["twitterUrl"]}
+                    entry["twitterUrl"] = [entry["twitterUrl"]]
                     the = the.select("*")
                     for i in range(len(the)):
-                        if i%2 == 0: entry["twitterUrl"][rb(the[i+1].text)] = the[i].text
+                        entry["twitterUrl"].append(the[i].attrs["href"])
                 del temp
             except: entry["twitterUrl"] = ""
 
             try: entry["notes"] = items[7].text.replace("\n"," ")
             except: entry["notes"] = ""
 
-            print(highlight(json.dumps(entry), JsonLexer(), NullFormatter()))
             vtubers.append(entry)
 
         json.dump(vtubers, open(resName,"w"), indent=4)
-        driver.find_element_by_tag_name("body").send_keys(Keys.CONTROL + 't')
 
 except KeyboardInterrupt:
     print("Keyboard interrupted")
+    driver.close()
 finally: 
     driver.close()
     
