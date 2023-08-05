@@ -22,7 +22,10 @@ urlMap = {
     "TikTok":"tiktok.com",
     "LINE Live":"live.line.me",
     "YouTube":"youtube.com",
-    "Twitter":"twitter.com" #"x.com" # elon dum
+    "Twitter":"twitter.com",
+    "Facebook":"facebook.com",
+    "Instagram":"instagram.com",
+    "Carrd":"carrd.co"
 }
 def getServiceByUrl(url):
     if all(i not in url for i in urlMap.values()):
@@ -101,23 +104,19 @@ def minor_vtubers():
                 temp = items[5]
                 test = temp.select_one("a")
                 if test != None:
-                    vtUrls["twitter"] = test.attrs["href"]
+                    vtUrls["Twitter"] = test.attrs["href"]
                     if (the:=temp.select_one("p")) != None:
-                        vtUrls["twitter"] = [vtUrls["twitter"]]
+                        vtUrls["Twitter"] = [vtUrls["Twitter"]]
                         the = the.select("a")
                         for i in range(len(the)):
-                            vtUrls["twitter"].append(the[i].attrs["href"])
+                            vtUrls["Twitter"].append(the[i].attrs["href"])
                     del temp
                 else: 
-                    vtUrls["twitter"] = ""
+                    vtUrls["Twitter"] = ""
                     del test
             
             entry["urls"] = vtUrls
             
-            if cursed >=8:
-                entry["notes"] = items[7].text.replace("\n"," ")
-            else: entry["notes"] = ""
-
             vtubers.append(entry)
 
         json.dump(vtubers, open(resName,"w"), indent=4)
@@ -141,14 +140,23 @@ def major_vtubers():
         for i in pages:
             anchor = i.select_one("a")
             if any(b in anchor.attrs["href"] for b in ["/Gallery", "/Discography"]) or anchor.attrs.get("class",None) is not None: continue
-            print(f"---------- Fetching {anchor.attrs['href']}")
+            print(f"---------- Fetching {relativeURL(anchor.attrs['href'])}")
             soup = BeautifulSoup(requests.get(relativeURL(anchor.attrs["href"])).text)
             # if this is not a page for agency, continue
-            if soup.select_one("span#Members") == None:
+            if soup.select_one("#Members") == None:
                 entry = {}
-                entry["name"] = soup.select_one(".mw-parser-output p > b").text
-                entry["urls"] = {getServiceByUrl(u.attrs["href"]): u.attrs["href"] for u in soup.select_one("span#Media").parent.find_next("ul").select("li a")}
+                entry["name"] = soup.select_one(".mw-page-title-main").text
+                extUrl = {}
+                for u in soup.select(".portable-infobox-wrapper aside section:nth-child(2) div:not(:first-child) a"):
+                    svc=getServiceByUrl(u.attrs["href"])
+                    t=u.attrs["href"]
+                    if svc in extUrl:
+                        if type(extUrl[svc]) != list:
+                            extUrl[svc] = [extUrl[svc]]
+                        extUrl[svc].append(t)
+                    else: extUrl[svc] = t
                 vtubers.append(entry)
+            else: print("^ agency page")
         if apUrl == prevPage: break
     json.dump(vtubers, open(resName,"w"), indent=4)
 
