@@ -1,16 +1,8 @@
 # to search for major VTubers, use the All Pages page
 
-# if termux (termux-clipboard-set is just 1 command) (you can troll this by creating a script with same name in PATH idk)
-termux=(__import__("shutil").which("termux-clipboard-set") is not None)
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.wait import WebDriverWait as driverWait
-from selenium.webdriver.remote.webelement import WebElement
-
 import json, traceback
 from bs4 import BeautifulSoup
-
+import requests
 rb = lambda s: s.replace("(", "").replace(")", "")
 "Remove curved brackets"
 
@@ -30,7 +22,10 @@ urlMap = {
     "TikTok":"tiktok.com",
     "LINE Live":"live.line.me",
     "YouTube":"youtube.com",
-    "Twitter":"twitter.com" #"x.com" # elon dum
+    "Twitter":"twitter.com",
+    "Facebook":"facebook.com",
+    "Instagram":"instagram.com",
+    "Carrd":"carrd.co"
 }
 def getServiceByUrl(url):
     if all(i not in url for i in urlMap.values()):
@@ -62,13 +57,6 @@ urls = [
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(Y%E2%80%94Z)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(other)"
 ]
-options = webdriver.ChromeOptions() if termux else webdriver.EdgeOptions()
-options.page_load_strategy = "eager"
-options.add_argument("--no-sandbox") 
-options.add_argument("--disable-dev-shm-usage") 
-options.add_argument("--disable-logging") 
-#options.add_argument("--headless=new")
-driver = webdriver.Edge(options) if not termux else webdriver.Chrome(options=options)
 
 def minor_vtubers():
     resName = "Minor VTubers.json"
@@ -76,11 +64,7 @@ def minor_vtubers():
     except:vtubers=[]
     for url in urls:
         print(f"---------- Fetching {url}")
-        driver.get(url)
-        tableBody:WebElement = driverWait(driver,10).until(ec.presence_of_element_located(("css selector", "#minor-vtuber-table > tbody")))
-        print("---------- Iterating table...")
-        driver.execute_script("document.title='MASTER CHEF 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥'")
-        for idx, item in enumerate(BeautifulSoup(tableBody.get_attribute("outerHTML")).select("tr")):
+        for idx, item in enumerate(BeautifulSoup(requests.get(url).text).select("#minor-vtuber-table tbody tr")):
             print(f"---------- Item ID: {idx}")
             items = item.select("td")
             cursed = len(items)
@@ -120,32 +104,65 @@ def minor_vtubers():
                 temp = items[5]
                 test = temp.select_one("a")
                 if test != None:
-                    vtUrls["twitter"] = test.attrs["href"]
+                    vtUrls["Twitter"] = test.attrs["href"]
                     if (the:=temp.select_one("p")) != None:
-                        vtUrls["twitter"] = [vtUrls["twitter"]]
+                        vtUrls["Twitter"] = [vtUrls["Twitter"]]
                         the = the.select("a")
                         for i in range(len(the)):
-                            vtUrls["twitter"].append(the[i].attrs["href"])
+                            vtUrls["Twitter"].append(the[i].attrs["href"])
                     del temp
                 else: 
-                    vtUrls["twitter"] = ""
+                    vtUrls["Twitter"] = ""
                     del test
             
             entry["urls"] = vtUrls
             
-            if cursed >=8:
-                entry["notes"] = items[7].text.replace("\n"," ")
-            else: entry["notes"] = ""
-
             vtubers.append(entry)
 
         json.dump(vtubers, open(resName,"w"), indent=4)
 
-try: minor_vtubers()
+def relativeURL(url):
+    if "https://" not in url: url = "https://virtualyoutuber.fandom.com" + url
+    return url
+
+def major_vtubers():
+    resName = "Major VTubers.json"
+    try:vtubers = json.load(open(resName,"r"))
+    except:vtubers=[]
+    apUrl = "https://virtualyoutuber.fandom.com/wiki/Special:AllPages"
+    prevPage = ""
+    while True:
+        mainsoup = BeautifulSoup(requests.get(apUrl).text)
+        anchors = mainsoup.select_one(".mw-allpages-nav").select("a")
+        prevPage = anchors[0].attrs["href"]
+        apUrl = anchors[-1].attrs["href"]
+        pages = mainsoup.select_one(".mw-allpages-chunk").select("li")
+        for i in pages:
+            anchor = i.select_one("a")
+            if any(b in anchor.attrs["href"] for b in ["/Gallery", "/Discography"]) or anchor.attrs.get("class",None) is not None: continue
+            print(f"---------- Fetching {relativeURL(anchor.attrs['href'])}")
+            soup = BeautifulSoup(requests.get(relativeURL(anchor.attrs["href"])).text)
+            # if this is not a page for agency, continue
+            if soup.select_one("#Members") == None:
+                entry = {}
+                entry["name"] = soup.select_one(".mw-page-title-main").text
+                extUrl = {}
+                for u in soup.select(".portable-infobox-wrapper aside section:nth-child(2) div:not(:first-child) a"):
+                    svc=getServiceByUrl(u.attrs["href"])
+                    t=u.attrs["href"]
+                    if svc in extUrl:
+                        if type(extUrl[svc]) != list:
+                            extUrl[svc] = [extUrl[svc]]
+                        extUrl[svc].append(t)
+                    else: extUrl[svc] = t
+                vtubers.append(entry)
+            else: print("^ agency page")
+        if apUrl == prevPage: break
+    json.dump(vtubers, open(resName,"w"), indent=4)
+
+try: major_vtubers()
 except KeyboardInterrupt:
     print("Keyboard interrupted")
 except Exception as e:
     traceback.print_exc(file=open("exceptionContent","w",encoding="utf-8"))
-finally: 
-    driver.close()
     
