@@ -1,6 +1,6 @@
 # to search for major VTubers, use the All Pages page
 
-import json, traceback
+import json, traceback, sys
 from bs4 import BeautifulSoup
 import requests
 rb = lambda s: s.replace("(", "").replace(")", "")
@@ -57,7 +57,8 @@ urls = [
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(Y%E2%80%94Z)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(other)"
 ]
-
+resName = ''
+vtubers = []
 def minor_vtubers():
     resName = "Minor VTubers.json"
     try:vtubers = json.load(open(resName,"r"))
@@ -125,27 +126,33 @@ def relativeURL(url):
     if "https://" not in url: url = "https://virtualyoutuber.fandom.com" + url
     return url
 
-def major_vtubers():
+def major_vtubers(startFrom=None):
+    global vtubers, resName
     resName = "Major VTubers.json"
     try:vtubers = json.load(open(resName,"r"))
     except:vtubers=[]
     apUrl = "https://virtualyoutuber.fandom.com/wiki/Special:AllPages"
+    if startFrom!=None:
+        apUrl+=f"?from={startFrom.replace(' ', '+').replace('/','%%2F')}&to=&namespace=0" # there's no need for urldecode bc page names are already in english
     prevPage = ""
     while True:
         mainsoup = BeautifulSoup(requests.get(apUrl).text)
         anchors = mainsoup.select_one(".mw-allpages-nav").select("a")
-        prevPage = anchors[0].attrs["href"]
         apUrl = anchors[-1].attrs["href"]
-        pages = mainsoup.select_one(".mw-allpages-chunk").select("li")
+        if apUrl == prevPage: break
+        pages = mainsoup.select_one(".mw-allpages-chunk").select("li a")
         for i in pages:
             anchor = i.select_one("a")
-            if any(b in anchor.attrs["href"] for b in ["/Gallery", "/Discography"]) or anchor.attrs.get("class",None) is not None: continue
+            if any(b in anchor.attrs["href"] for b in ["/Gallery", "/Discography", "(disambiguation)"]) or anchor.attrs.get("class",None) is not None: continue
             print(f"---------- Fetching {relativeURL(anchor.attrs['href'])}")
             soup = BeautifulSoup(requests.get(relativeURL(anchor.attrs["href"])).text)
             # if this is not a page for agency, continue
             if soup.select_one("#Members") == None:
                 entry = {}
-                entry["name"] = soup.select_one(".mw-page-title-main").text
+                entry["name"] = soup.select_one(".page-header__title").text[1:-2]
+
+                origName = soup.select_one("[data-source='original_name'] div")
+                entry["originalName"] = origName.text if origName != None else ""
                 extUrl = {}
                 for u in soup.select(".portable-infobox-wrapper aside section:nth-child(2) div:not(:first-child) a"):
                     svc=getServiceByUrl(u.attrs["href"])
@@ -155,14 +162,18 @@ def major_vtubers():
                             extUrl[svc] = [extUrl[svc]]
                         extUrl[svc].append(t)
                     else: extUrl[svc] = t
+                entry["urls"] = extUrl
                 vtubers.append(entry)
             else: print("^ agency page")
-        if apUrl == prevPage: break
+        prevPage = anchors[-1].attrs["href"]
     json.dump(vtubers, open(resName,"w"), indent=4)
 
-try: major_vtubers()
+try: 
+    globals()[sys.argv[1]](*tuple(sys.argv[2:]))
 except KeyboardInterrupt:
     print("Keyboard interrupted")
+    json.dump(vtubers, open(resName,"w"), indent=4)
 except Exception as e:
     traceback.print_exc(file=open("exceptionContent","w",encoding="utf-8"))
+    json.dump(vtubers, open(resName,"w"), indent=4)
     
