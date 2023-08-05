@@ -147,7 +147,7 @@ def major_vtubers():
             if soup.select_one("span#Members") == None:
                 entry = {}
                 entry["name"] = soup.select_one(".mw-parser-output p > b").text
-                entry["urls"] = {getServiceByUrl(u.attrs["href"]): u.attrs["href"] for u in soup.select_one("span#Media").parent.find_next("ul").select("li")}
+                entry["urls"] = {getServiceByUrl(u.attrs["href"]): u.attrs["href"] for u in soup.select_one("span#Media").parent.find_next("ul").select("li a")}
                 vtubers.append(entry)
         if apUrl == prevPage: break
     json.dump(vtubers, open(resName,"w"), indent=4)
