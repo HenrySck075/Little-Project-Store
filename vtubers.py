@@ -1,19 +1,8 @@
 # to search for major VTubers, use the All Pages page
 
-# if termux (termux-clipboard-set is just 1 command) (you can troll this by creating a script with same name in PATH idk)
-termux=(__import__("shutil").which("termux-clipboard-set") is not None)
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.wait import WebDriverWait as driverWait
-from selenium.webdriver.remote.webelement import WebElement
-
 import json, traceback
 from bs4 import BeautifulSoup
-
-resName = "Minor VTubers.json"
-try:vtubers = json.load(open(resName,"r"))
-except:vtubers=[]
+import requests
 rb = lambda s: s.replace("(", "").replace(")", "")
 "Remove curved brackets"
 
@@ -65,22 +54,14 @@ urls = [
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(Y%E2%80%94Z)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(other)"
 ]
-options = webdriver.ChromeOptions() if termux else webdriver.EdgeOptions()
-options.page_load_strategy = "eager"
-options.add_argument("--no-sandbox") 
-options.add_argument("--disable-dev-shm-usage") 
-options.add_argument("--disable-logging") 
-#options.add_argument("--headless=new")
-driver = webdriver.Edge(options) if not termux else webdriver.Chrome(options=options)
 
 def minor_vtubers():
+    resName = "Minor VTubers.json"
+    try:vtubers = json.load(open(resName,"r"))
+    except:vtubers=[]
     for url in urls:
         print(f"---------- Fetching {url}")
-        driver.get(url)
-        tableBody:WebElement = driverWait(driver,10).until(ec.presence_of_element_located(("css selector", "#minor-vtuber-table > tbody")))
-        print("---------- Iterating table...")
-        driver.execute_script("document.title='MASTER CHEF 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥'")
-        for idx, item in enumerate(BeautifulSoup(tableBody.get_attribute("outerHTML")).select("tr")):
+        for idx, item in enumerate(BeautifulSoup(requests.get(url).text).select("#minor-vtuber-table tbody tr")):
             print(f"---------- Item ID: {idx}")
             items = item.select("td")
             cursed = len(items)
@@ -96,7 +77,7 @@ def minor_vtubers():
             entry["jpName"] = rb(jpName)
             del temp
 
-            langs = items[2].text
+            entry["language"] = items[2].text
             
             vtUrls = {}
             
@@ -141,11 +122,39 @@ def minor_vtubers():
 
         json.dump(vtubers, open(resName,"w"), indent=4)
 
-try: minor_vtubers()
+def relativeURL(url):
+    if "https://" not in url: url = "https://virtualyoutuber.fandom.com" + url
+    return url
+
+def major_vtubers():
+    resName = "Major VTubers.json"
+    try:vtubers = json.load(open(resName,"r"))
+    except:vtubers=[]
+    apUrl = "https://virtualyoutuber.fandom.com/wiki/Special:AllPages"
+    prevPage = ""
+    while True:
+        mainsoup = BeautifulSoup(requests.get(apUrl).text)
+        anchors = mainsoup.select_one(".mw-allpages-nav").select("a")
+        prevPage = anchors[0].attrs["href"]
+        apUrl = anchors[-1].attrs["href"]
+        pages = mainsoup.select_one(".mw-allpages-chunk").select("li")
+        for i in pages:
+            anchor = i.select_one("a")
+            if any(b in anchor.attrs["href"] for b in ["/Gallery", "/Discography"]) or anchor.attrs.get("class",None) is not None: continue
+            print(f"---------- Fetching {anchor.attrs['href']}")
+            soup = BeautifulSoup(requests.get(relativeURL(anchor.attrs["href"])).text)
+            # if this is not a page for agency, continue
+            if soup.select_one("span#Members") == None:
+                entry = {}
+                entry["name"] = soup.select_one(".mw-parser-output p > b").text
+                entry["urls"] = {getServiceByUrl(u.attrs["href"]): u.attrs["href"] for u in soup.select_one("span#Media").parent.find_next("ul").select("li")}
+                vtubers.append(entry)
+        if apUrl == prevPage: break
+    json.dump(vtubers, open(resName,"w"), indent=4)
+
+try: major_vtubers()
 except KeyboardInterrupt:
     print("Keyboard interrupted")
 except Exception as e:
     traceback.print_exc(file=open("exceptionContent","w",encoding="utf-8"))
-finally: 
-    driver.close()
     
