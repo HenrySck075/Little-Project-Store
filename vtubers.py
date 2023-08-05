@@ -11,9 +11,6 @@ from selenium.webdriver.remote.webelement import WebElement
 import json, traceback
 from bs4 import BeautifulSoup
 
-resName = "Minor VTubers.json"
-try:vtubers = json.load(open(resName,"r"))
-except:vtubers=[]
 rb = lambda s: s.replace("(", "").replace(")", "")
 "Remove curved brackets"
 
@@ -74,6 +71,9 @@ options.add_argument("--disable-logging")
 driver = webdriver.Edge(options) if not termux else webdriver.Chrome(options=options)
 
 def minor_vtubers():
+    resName = "Minor VTubers.json"
+    try:vtubers = json.load(open(resName,"r"))
+    except:vtubers=[]
     for url in urls:
         print(f"---------- Fetching {url}")
         driver.get(url)
@@ -96,7 +96,7 @@ def minor_vtubers():
             entry["jpName"] = rb(jpName)
             del temp
 
-            langs = items[2].text
+            entry["language"] = items[2].text
             
             vtUrls = {}
             
