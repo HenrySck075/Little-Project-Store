@@ -14,7 +14,7 @@ urlMap = {
     "NicoNico":["nicovideo.jp"],
     "OPENREC.tv":["openrec.tv"],
     "Mildom":["mildom.com"],
-    "REALITY":["reality.app"],
+    "REALITY":["reality.app","reality.wrightflyer.net"],
     "Mixch":["mixch.tv"],
     "Mirrativ":["mirrativ.com"],
     "bilibili":["bilibili.com","bilibili.tv"],
@@ -22,12 +22,12 @@ urlMap = {
     "TikTok":["tiktok.com"],
     "LINE Live":["live.line.me"],
     "YouTube":["youtube.com"],
-    "Twitter":["twitter.com"],
-    "Facebook":["facebook.com"],
+    "Twitter/X":["twitter.com","t.co"],
+    "Facebook":["facebook.com","fb.com"],
     "Instagram":["instagram.com"],
     "Carrd":["carrd.co"],
-    "Discord":["discord.com","discord.gg"],
-    "Weibo":["weibo.com"],
+    "Discord":["discord.com","discord.gg","dsc.gg"],
+    "Weibo":["weibo.com","weibo.cn"],
     "Kick":["kick.com"],
     "Reddit":["reddit.com"],
     "pixiv":["pixiv.net"],
@@ -37,10 +37,39 @@ urlMap = {
     "Marshmallow":["marshmallow-qa.com"],
     "SoundCloud":["soundcloud.com"],
     "VT Social":["vt.social"],
-    "Ko-Fi":["ko-fi.com"]
+    "Ko-Fi":["ko-fi.com"],
+    "VTuber's website":["bunnyayumi.com","cyannyan.com","vjoi.cn"],
+    "Patreon":["patreon.com"],
+    "Douyin":["douyin.com"],
+    "tape":["tapechat.net"],
+    "Afdian":["afdian.net"],
+    "Tumblr":["tumblr.com"],
+    "Google+":["plus.google.com"],
+    "Yahoo":["yahoo.com"],
+    "Fanicon":["fanicon.net"],
+    "Baidu":["baidu.com"],
+    "Nimo TV":["nimo.tv"],
+    "Telegram":["t.me"],
+    "Peing":["peing.net"],
+    "VK":["vk.com"],
+    "GitHub":["github.com"],
+    "ArtStation":["artstation.com"],
+    "Teespring":["teespring.com"],
+    "CuddlyOctopus":["cuddlyoctopus.com"],
+    "Donate":["streamelements.com"],
+    "Hatena Blog":["hatenablog.com"],
+    "pixiv Fantia":["fantia.jp"],
+    "Archives":["archive."],
+    "Douyu":["douyu.com"],
+    "Line":["lin.ee"],
+    "Lit Link":["lit.link"],
+    "tapeclub":["tapeclub.net"],
+    "Throne":["throne.me"],
+    "Linktree":["linktr.ee"]
 }
 
 def getServiceByUrl(url):
+    url = url.lower()
     for i in urlMap.keys():
         if any(j in url for j in urlMap[i]): return i
 
@@ -155,7 +184,7 @@ def major_vtubers(startFrom=None):
         if apUrl == prevPage: break
         pages = mainsoup.select(".mw-allpages-chunk li a")
         for anchor in pages:
-            if any(b in anchor.text for b in ["/Gallery", "Discography", "(disambiguation)", "Historical Milestones"]) or anchor.attrs.get("class",None) is not None: continue
+            if any(b in anchor.text for b in ["Gallery", "Discography", "(disambiguation)", "Historical Milestones", "List of "]) or anchor.attrs.get("class",None) is not None: continue
             print(f"---------- Fetching {relativeURL(anchor.attrs['href'])}")
             soup = BeautifulSoup(requests.get(relativeURL(anchor.attrs["href"])).text,"lxml")
             # if this is not a page for agency, continue
@@ -169,10 +198,10 @@ def major_vtubers(startFrom=None):
                 try:
                     for u in soup.select(".portable-infobox section")[1].select("a"):
                         smile = u.parent
-                        if smile.name != 'div': smile = smile.parent
+                        while smile.name != "div": smile = smile.parent
                         if "Official Website" in smile.parent.select_one("h3").text: continue
                         t=u.attrs["href"]
-                        if "#cite_note-" in t: continue
+                        if "#cite_note-" in t or "autonumber" in u.attrs["class"]: continue
                         svc=getServiceByUrl(u.attrs["href"])
                         if svc in extUrl:
                             if type(extUrl[svc]) != list:
