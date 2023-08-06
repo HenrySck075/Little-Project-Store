@@ -1,6 +1,6 @@
 # to search for major VTubers, use the All Pages page
 
-import json, traceback, sys
+import json, traceback, sys, os
 from bs4 import BeautifulSoup
 import requests
 rb = lambda s: s.replace("(", "").replace(")", "")
@@ -26,7 +26,7 @@ urlMap = {
     "Facebook":["facebook.com","fb.com"],
     "Instagram":["instagram.com"],
     "Carrd":["carrd.co"],
-    "Discord":["discord.com","discord.gg","dsc.gg"],
+    "Discord":["discord.com","discord.gg","dsc.gg","discordapp.com"],
     "Weibo":["weibo.com","weibo.cn"],
     "Kick":["kick.com"],
     "Reddit":["reddit.com"],
@@ -65,14 +65,17 @@ urlMap = {
     "Lit Link":["lit.link"],
     "tapeclub":["tapeclub.net"],
     "Throne":["throne.me"],
-    "Linktree":["linktr.ee"]
+    "Linktree":["linktr.ee"],
+    "POME":["pome.ink"],
+    "Mastodon":["ieji.de"]
 }
 
 def getServiceByUrl(url):
     url = url.lower()
     for i in urlMap.keys():
         if any(j in url for j in urlMap[i]): return i
-
+    
+    os.system("paplay SSNotify.wav")
     print(f"An undefined service detected: {url}")
     name = input("Please enter the service name: ")
     host = input("Please enter host url: ").split(", ")
