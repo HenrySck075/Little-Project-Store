@@ -4,3 +4,4 @@ Minor VTubers.json
 Major VTubers.json
 exceptionContent
 *.swp
+__pycache__
