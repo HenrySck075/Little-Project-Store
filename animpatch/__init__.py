@@ -1,4 +1,5 @@
-from . import download
+from .core.cli.commands import download
+from .core.cli.helpers import banner
 from enum import Enum
 
 class Function(Enum):
@@ -12,6 +13,7 @@ def addMissing(d: dict):
     } | d
 
 def patch(config: dict, download_conf = {}):
+    banner.patch()
     config = addMissing(config)
     def i(conf: dict, type: int):
         j = config | conf

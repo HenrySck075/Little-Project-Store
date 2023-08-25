@@ -8,6 +8,7 @@ class MessageType(Enum):
 class InfoSubtype(Enum):
     providers = 1
     download_location = 2
+    dl_info = 3
 
 def dic(**a): return a
 
