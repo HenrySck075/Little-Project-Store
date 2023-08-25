@@ -14,6 +14,7 @@ def standard_download(
     log_level: int = 20,
     retry_timeout: float = 5.0,
     method="GET",
+    callback=lambda a,b: ""
 ):
     expected_download_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -54,6 +55,7 @@ def standard_download(
             headers=headers,
             retry_timeout=retry_timeout,
             progress_bar=progress_bar,
+            callback=callback
         )
 
         downloader.allocate_downloads(

@@ -32,6 +32,8 @@ def animdl_download(
 
     logger = logging.getLogger("downloader")
 
+    progress_callback = kwargs.get("progress_callback", lambda prog, total: "")
+
     anime, provider = helpers.process_query(
         http_client.client, query, console, auto_index=index, provider=DEFAULT_PROVIDER
     )
@@ -84,7 +86,6 @@ def animdl_download(
                 "This could mean that, either those episodes are unavailable or that the scraper has broke.",
                 style="dim",
             )
-            raise SystemExit(exit_codes.NO_CONTENT_FOUND)
 
         with helpers.stream_handlers.context_raiser(
             console, f"Now downloading {content_name!r}", name="downloading"
@@ -119,6 +120,7 @@ def animdl_download(
                     use_internet_download_manager=idm,
                     retry_timeout=AUTO_RETRY,
                     log_level=log_level,
+                    progress_callback=progress_callback
                 )
 
                 if status_enum == helpers.SafeCaseEnum.NO_CONTENT_FOUND:
