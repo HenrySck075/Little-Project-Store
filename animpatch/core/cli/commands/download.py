@@ -19,9 +19,6 @@ import animdl.core.cli.helpers as helpers, animdl.core.cli.http_client as http_c
 import animdl.core.cli.commands.download
 
 from ....exc import DownloaderException, ExtractionError, NoContentFound, prinnt
-import ...codebase.downloader.handle as handle_patch
-from .helpers import dic, send_exc
-
 
 def animdl_download(
     query, special, quality, download_dir, idm, index, log_level, **kwargs
@@ -151,4 +148,3 @@ def patch(keep_banner: bool = False, log = True):
     if log: f = helpers.decorators.logging_options()(helpers.decorators.setup_loggers()(f))
     animdl.core.cli.commands.download.animdl_download = f
 
-    handle_patch.patch()

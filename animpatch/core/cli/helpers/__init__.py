@@ -1,3 +1,4 @@
+from .constants import PROGRESS_CALLBACK
 from . import banner
 import logging
 import traceback
@@ -22,7 +23,7 @@ def safe_download_callback(
     use_internet_download_manager: bool = False,
     retry_timeout: "Optional[int]" = None,
     log_level: "Optional[int]" = None,
-    progress_callback: "Callable[[int, int], Any]",
+    progress_callback = PROGRESS_CALLBACK,
     **kwargs,
 ) -> "Tuple[SafeCaseEnum, Optional[BaseException]]":
     flattened_streams = list(stream_urls)
