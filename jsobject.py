@@ -40,8 +40,7 @@ class Array(object):
     
     def copyWithin(self, to, start, end=None):
         part = self.__data__[start:end]
-        (self.__data__[.pop(to)] for _ in range(to))
-        (self.__data__[to] for _ in range(to))
+        (self.__data__ for i in range(to))
 
         
 class Object(object):
