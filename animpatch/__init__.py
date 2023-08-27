@@ -1,5 +1,3 @@
-from .core.cli.commands import download, search
-from .core.cli.helpers import banner
 from enum import Enum
 
 class Function(Enum):
@@ -13,9 +11,12 @@ def addMissing(d: dict):
     } | d
 
 def patch(config: dict, download_conf = {}, search_conf = {}):
-    banner.patch()
-    config = addMissing(config)
+    from .core.cli.commands import download, search
+    from .core.cli.helpers import banner, stream_handlers
     from .core.codebase.downloader import handle as handle_patch
+    banner.patch()
+    stream_handlers.patch()
+    config = addMissing(config)
     def i(conf: dict, type: int):
         j = config | conf
         globals()[Function(type).name].patch(**j)

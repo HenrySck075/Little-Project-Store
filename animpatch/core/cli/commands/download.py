@@ -2,7 +2,6 @@ from pathlib import Path
 
 from typing import Dict
 
-import logging
 from rich.text import Text
 
 from animdl.core.__version__ import __core__
@@ -16,18 +15,21 @@ from animdl.core.config import (
 )
 import animdl.core.cli.helpers as helpers, animdl.core.cli.http_client as http_client
 
-import animdl.core.cli.commands.download
+import animdl.core.cli.commands.download, logging
 
 from ....exc import DownloaderException, ExtractionError, NoContentFound
+from ....helpers import DisabledLogger, addKwargs
 
 def animdl_download(
     query, special, quality, download_dir, idm, index, log_level, **kwargs
 ) -> Dict[str, list]:
     r = kwargs.get("range")
 
-    console = helpers.stream_handlers.get_console()
+    log = kwargs.get("logging", False)
 
-    logger = logging.getLogger("downloader")
+    console = helpers.stream_handlers.get_console(log)
+
+    logger = logging.getLogger("downloader") if log else DisabledLogger("downloader", log_level)
 
     progress_callback = kwargs.get("progress_callback", lambda prog, total: "")
 
@@ -129,6 +131,10 @@ def animdl_download(
 def patch(keep_banner: bool = False, log = True):
     f = animdl_download
     if keep_banner: f = (helpers.decorators.banner_gift_wrapper(http_client.client, __core__, check_for_updates=CHECK_FOR_UPDATES))(f)
-    if log: f = helpers.decorators.logging_options()(helpers.decorators.setup_loggers()(f))
+    if log: f = helpers.decorators.logging_options()(
+        helpers.decorators.setup_loggers()(
+            addKwargs(logging=True)(f)
+        )
+    )
     animdl.core.cli.commands.download.animdl_download = f
 

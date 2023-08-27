@@ -14,6 +14,12 @@ def dic(**a): return a
 
 def send_exc(msg): return dic(type=-1, excMessage=msg)
 
+from functools import partial
+def addKwargs(**the):
+    def i(f):
+        return partial(f, **the)
+    return i
+
 raiseExceptions = True
 
 class DisabledLogger(Logger):
@@ -21,14 +27,12 @@ class DisabledLogger(Logger):
     def __init__(self, name: str, level: _Level = 0) -> None:
         super().__init__(name, level)
     
-    def log(self, level, msg, *args, **kwargs):
+    def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False,stacklevel=1):
         """
-        Log 'msg % args' with the integer severity 'level'.
+        Low-level logging routine which creates a LogRecord and then calls
+        all the handlers of this logger to handle the record.
 
-        To pass exception information, use the keyword argument exc_info with
-        a true value, e.g.
-
-        logger.log(level, "We have a %s", "mysterious problem", exc_info=1)
+        (It doesn't)
         """
         pass
 
