@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from typing import Generator, Dict, Optional, Any, Tuple
+from typing import Dict
 
 import logging
 from rich.text import Text
@@ -18,11 +18,11 @@ import animdl.core.cli.helpers as helpers, animdl.core.cli.http_client as http_c
 
 import animdl.core.cli.commands.download
 
-from ....exc import DownloaderException, ExtractionError, NoContentFound, prinnt
+from ....exc import DownloaderException, ExtractionError, NoContentFound
 
 def animdl_download(
     query, special, quality, download_dir, idm, index, log_level, **kwargs
-) -> Generator[Dict[str, int], None, None]:
+) -> Dict[str, list]:
     r = kwargs.get("range")
 
     console = helpers.stream_handlers.get_console()
@@ -36,8 +36,7 @@ def animdl_download(
     )
 
     if not anime:
-        console.print(Text("Could not find an anime of that name :/."))
-        raise SystemExit(exit_codes.NO_CONTENT_FOUND)
+        raise NoContentFound("Could not find an anime of that name :/.")
 
     logger.name = "{}/{}".format(provider, logger.name)
 
@@ -78,11 +77,7 @@ def animdl_download(
         total = len(streams)
 
         if total < 1:
-            console.print(Text("Could not find any streams on the site :/."))
-            console.print(
-                "This could mean that, either those episodes are unavailable or that the scraper has broke.",
-                style="dim",
-            )
+            raise NoContentFound("Could not find any streams on the site :/.\nThis could mean that, either those episodes are unavailable or that the scraper has broke.")
 
         with helpers.stream_handlers.context_raiser(
             console, f"Now downloading {content_name!r}", name="downloading"
@@ -121,26 +116,15 @@ def animdl_download(
                 )
 
                 if status_enum == helpers.SafeCaseEnum.NO_CONTENT_FOUND:
-                    console.print(
-                        f"Could not find any streams for {content_title!r}",
-                    )
-                    continue
+                    animes[content_name]["episodes"][content_title]["exception"] = NoContentFound(f"Could not find any streams for {content_title!r}")
 
                 if status_enum == helpers.SafeCaseEnum.EXTRACTION_ERROR:
-                    console.print(
-                        f"Could not extract any streams for {content_title!r} due to: {exception!r}",
-                    )
-                    continue
+                    animes[content_name]["episodes"][content_title]["exception"] = ExtractionError(f"Could not extract any streams for {content_title!r} due to: {exception!r}",)
 
                 if status_enum == helpers.SafeCaseEnum.DOWNLOADER_EXCEPTION:
-                    console.print(
-                        Text(
-                            f"Internal downloader error occured for {content_title!r}.",
-                        )
-                    )
-                    continue
+                    animes[content_name]["episodes"][content_title]["exception"] = DownloaderException(f"Internal downloader error occured for {content_title!r}.")
 
-        yield {"animes": animes}
+        return {"animes": animes}
 
 def patch(keep_banner: bool = False, log = True):
     f = animdl_download

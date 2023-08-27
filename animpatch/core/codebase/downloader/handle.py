@@ -1,20 +1,25 @@
-import httpx, logging
-from typing import Optional
+import httpx, logging, pathlib
+from typing import Optional, Dict
 from pathlib import Path
 from tqdm import tqdm
 from animdl.core.config import THREADED_DOWNLOAD
-from animdl.core.cli.helpers import subautomatic
+from animdl.core.codebase.downloader.handle import subautomatic, hls_download, idm_download, FFMPEG_HLS, POSSIBLE_VIDEO_EXTENSIONS, DEFAULT_MEDIA_EXTENSION, EXEMPT_EXTENSIONS
+from animdl.core.codebase.downloader.ffmpeg import FFMPEG_EXTENSIONS, ffmpeg_download, has_ffmpeg
+from animdl.core.codebase.downloader.hls import HLS_STREAM_EXTENSIONS
 
-from animpatch.core.cli.helpers.constants import PROGRESS_CALLBACK
+from ....helpers import PROGRESS_CALLBACK
 
 import animdl.utils.media_downloader as media_downloader
+import animdl.utils.serverfiles as serverfiles
+
+
 @subautomatic
 def handle_download(
     session: httpx.Client,
     url: str,
     expected_download_path: pathlib.Path,
     use_internet_download_manager=False,
-    headers: typing.Optional[typing.Dict[str, str]] = None,
+    headers: Optional[Dict[str, str]] = None,
     **opts,
 ):
     download_handling_logger = logging.getLogger("animdl/download-handler")

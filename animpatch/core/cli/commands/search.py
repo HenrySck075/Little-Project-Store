@@ -1,24 +1,15 @@
-import click
-
 from animdl.core.__version__ import __core__
-from animdl.core.codebase.helpers import optopt
 from animdl.core.codebase.providers import get_provider
-from animdl.core.config import CHECK_FOR_UPDATES, DEFAULT_PROVIDER
+from animdl.core.config import CHECK_FOR_UPDATES
 from animdl.core.cli import helpers
 from animdl.core.cli.http_client import client
 
 
-@helpers.decorators.logging_options()
-@helpers.decorators.setup_loggers()
-@helpers.decorators.banner_gift_wrapper(
-    client, __core__, check_for_updates=CHECK_FOR_UPDATES
-)
 def animdl_search(query, json, provider, **kwargs):
-
-    console = helpers.stream_handlers.get_console()
 
     match, module, _ = get_provider(query, raise_on_failure=False)
 
+    data = {"total": 0, "animes": []}
     if module is not None:
         genexp = (
             {
@@ -33,9 +24,16 @@ def animdl_search(query, json, provider, **kwargs):
         genexp = helpers.provider_searcher_mapping.get(provider)(client, query)
 
     for count, search_data in enumerate(genexp, 1):
+        data["total"] = count
         if json:
-            print(optopt.jsonlib.dumps(search_data))
-        else:
-            console.print(
-                f"{count}. {search_data['name']} / {search_data['anime_url']}"
-            )
+            data["animes"].append(search_data)
+    return data
+
+def patch(keep_banner = False, log = True):
+    f = animdl_search
+    if keep_banner:
+        f = helpers.decorators.banner_gift_wrapper(client, __core__, check_for_updates=CHECK_FOR_UPDATES)(f)
+    if log:
+        f = helpers.decorators.logging_options()(helpers.decorators.setup_loggers()(f))
+    import animdl.core.cli.commands.search
+    animdl.core.cli.commands.search.animdl_search = f

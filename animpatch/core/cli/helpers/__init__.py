@@ -1,4 +1,4 @@
-from .constants import PROGRESS_CALLBACK
+from ....helpers import PROGRESS_CALLBACK
 from . import banner
 import logging
 import traceback
@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from animdl.core.cli.helpers import intelliq, further_extraction, SafeCaseEnum
 import animdl.core.cli.helpers
 from animdl.core.codebase import downloader
+from ....exc import *
 
 def safe_download_callback(
     session: "httpx.Client",
@@ -25,47 +26,45 @@ def safe_download_callback(
     log_level: "Optional[int]" = None,
     progress_callback = PROGRESS_CALLBACK,
     **kwargs,
-) -> "Tuple[SafeCaseEnum, Optional[BaseException]]":
+) -> "pathlib.Path":
     flattened_streams = list(stream_urls)
 
     try:
         streams = intelliq.filter_quality(flattened_streams, quality)
     except Exception as exception:
-        return SafeCaseEnum.EXTRACTION_ERROR, exception
+        raise ExtractionError(exception)
 
     if not streams:
-        return SafeCaseEnum.NO_CONTENT_FOUND, None
+        raise NoContentFound("meow")
 
     for stream in streams:
         needs_further_extraction = "further_extraction" in stream
 
         if needs_further_extraction:
-            status, potential_error = safe_download_callback(
-                session,
-                logger,
-                further_extraction(session, stream),
-                quality,
-                expected_download_path,
-                use_internet_download_manager,
-                retry_timeout,
-                log_level,
-                **kwargs,
-            )
+            try:
+                n = safe_download_callback(
+                    session,
+                    logger,
+                    further_extraction(session, stream),
+                    quality,
+                    expected_download_path,
+                    use_internet_download_manager,
+                    retry_timeout,
+                    log_level,
+                    **kwargs,
+                )
 
-            if status == SafeCaseEnum.DOWNLOADED:
-                return status, potential_error
-
-            if status == SafeCaseEnum.NO_CONTENT_FOUND:
+            except NoContentFound:
                 logger.debug(f"Could not find streams on further extraction, skipping.")
                 continue
 
-            if status == SafeCaseEnum.EXTRACTION_ERROR:
+            except ExtractionError as e:
                 logger.error(
-                    f"Could not extract streams from further extraction due to an error: {potential_error}, skipping."
+                    f"Could not extract streams from further extraction due to an error: {repr(e)}, skipping."
                 )
                 continue
 
-            if status == SafeCaseEnum.DOWNLOADER_EXCEPTION:
+            except DownloaderException:
                 logger.error(
                     f"Could not download streams from further extraction due to multiple errors, skipping."
                 )
@@ -73,7 +72,7 @@ def safe_download_callback(
 
         else:
             try:
-                downloader.handle_download(
+                path = downloader.handle_download(
                     session=session,
                     url=stream["stream_url"],
                     expected_download_path=expected_download_path,
@@ -84,7 +83,7 @@ def safe_download_callback(
                     callback=progress_callback,
                     **kwargs,
                 )
-                return SafeCaseEnum.DOWNLOADED, None
+                return path
 
             except Exception as download_exception:
                 logger.error(
@@ -96,7 +95,7 @@ def safe_download_callback(
             "Could not download any streams. Use the project with 0 log level to view errors for debugging and bug reporting purposes."
         )
 
-        return SafeCaseEnum.NO_CONTENT_FOUND, None
+        raise NoContentFound("Could not download any streams. Use the project with 0 log level to view errors for debugging and bug reporting purposes.")
 
 def patch():
     from ...codebase import downloader as downloader_patch
