@@ -34,17 +34,17 @@ def safe_download_callback(
     try:
         streams = intelliq.filter_quality(flattened_streams, quality)
     except Exception as exception:
-        raise ExtractionError(exception)
+        raise ExtractionError(" ".join(exception.args))
 
     if not streams:
-        raise NoContentFound("meow")
+        raise NoContentFound("No streams found")
 
     for stream in streams:
         needs_further_extraction = "further_extraction" in stream
 
         if needs_further_extraction:
             try:
-                n = safe_download_callback(
+                safe_download_callback(
                     session,
                     logger,
                     further_extraction(session, stream),
@@ -57,12 +57,12 @@ def safe_download_callback(
                 )
 
             except NoContentFound:
-                logger.debug(f"Could not find streams on further extraction, skipping.")
+                logger.debug("Could not find streams on further extraction, skipping.")
                 continue
 
             except ExtractionError as e:
                 logger.error(
-                    f"Could not extract streams from further extraction due to an error: {repr(e)}, skipping."
+                    f"Could not extract streams from further extraction due to an error: {' '.join(e.args)}, skipping."
                 )
                 continue
 

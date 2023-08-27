@@ -8,10 +8,7 @@ from animdl.core.__version__ import __core__
 from animdl.core.codebase import providers, sanitize_filename
 from animdl.core.config import (
     AUTO_RETRY,
-    CHECK_FOR_UPDATES,
-    DEFAULT_PROVIDER,
-    DOWNLOAD_DIRECTORY,
-    QUALITY,
+    DEFAULT_PROVIDER
 )
 import animdl.core.cli.helpers as helpers, animdl.core.cli.http_client as http_client
 
@@ -105,36 +102,40 @@ def animdl_download(
 
                 expected_download_path = content_dir / content_title
 
-                status_enum, exception = helpers.safe_download_callback( # patch this to not log the progress created by tqdm
-                    session=http_client.client,
-                    logger=logger,
-                    stream_urls=stream_urls,
-                    quality=quality,
-                    expected_download_path=expected_download_path,
-                    use_internet_download_manager=idm,
-                    retry_timeout=AUTO_RETRY,
-                    log_level=log_level,
-                    progress_callback=progress_callback
-                )
-
-                if status_enum == helpers.SafeCaseEnum.NO_CONTENT_FOUND:
+                try: 
+                    file_path = helpers.safe_download_callback( # patch this to not log the progress created by tqdm
+                        session=http_client.client,
+                        logger=logger,
+                        stream_urls=stream_urls,
+                        quality=quality,
+                        expected_download_path=expected_download_path,
+                        use_internet_download_manager=idm,
+                        retry_timeout=AUTO_RETRY,
+                        log_level=log_level,
+                        progress_callback=progress_callback
+                    )
+                except NoContentFound:
                     animes[content_name]["episodes"][content_title]["exception"] = NoContentFound(f"Could not find any streams for {content_title!r}")
 
-                if status_enum == helpers.SafeCaseEnum.EXTRACTION_ERROR:
-                    animes[content_name]["episodes"][content_title]["exception"] = ExtractionError(f"Could not extract any streams for {content_title!r} due to: {exception!r}",)
+                except ExtractionError as e:
+                    animes[content_name]["episodes"][content_title]["exception"] = ExtractionError(f"Could not extract any streams for {content_title!r} due to: {' '.join(e.args)!r}")
 
-                if status_enum == helpers.SafeCaseEnum.DOWNLOADER_EXCEPTION:
+                except DownloaderException:
                     animes[content_name]["episodes"][content_title]["exception"] = DownloaderException(f"Internal downloader error occured for {content_title!r}.")
+                
+                except Exception:
+                    animes[content_name]["episodes"][content_title]["path"] = ""
+                
+                else:
+                    animes[content_name]["episodes"][content_title]["path"] = file_path
+                    animes[content_name]["episodes"][content_title]["exception"] = None
 
         return {"animes": animes}
 
 def patch(keep_banner: bool = False, log = True):
     f = animdl_download
-    if keep_banner: f = (helpers.decorators.banner_gift_wrapper(http_client.client, __core__, check_for_updates=CHECK_FOR_UPDATES))(f)
-    if log: f = helpers.decorators.logging_options()(
-        helpers.decorators.setup_loggers()(
-            addKwargs(logging=True)(f)
-        )
-    )
+    if keep_banner: f = helpers.decorators.banner_gift_wrapper()(f)
+    if log: f = helpers.decorators.setup_loggers()(addKwargs(logging=True)(f))
+    
     animdl.core.cli.commands.download.animdl_download = f
 

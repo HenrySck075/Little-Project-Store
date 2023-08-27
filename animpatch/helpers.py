@@ -1,5 +1,5 @@
 from enum import Enum
-from logging import _Level, Logger
+from logging import Logger
 class MessageType(Enum):
     error = -1
     info = 1
@@ -24,7 +24,7 @@ raiseExceptions = True
 
 class DisabledLogger(Logger):
     "No matter what you're trying to do, it won't print"
-    def __init__(self, name: str, level: _Level = 0) -> None:
+    def __init__(self, name: str, level = 0) -> None:
         super().__init__(name, level)
     
     def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False,stacklevel=1):

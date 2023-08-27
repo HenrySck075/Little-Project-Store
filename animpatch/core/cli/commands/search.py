@@ -1,10 +1,10 @@
 from animdl.core.__version__ import __core__
 from animdl.core.codebase.providers import get_provider
-from animdl.core.config import CHECK_FOR_UPDATES
 from animdl.core.cli import helpers
 from animdl.core.cli.http_client import client
 
-def animdl_search(query, json, provider, **kwargs):
+def animdl_search(query, provider, **kwargs):
+    print(query, provider)
 
     match, module, _ = get_provider(query, raise_on_failure=True)
 
@@ -24,17 +24,14 @@ def animdl_search(query, json, provider, **kwargs):
 
     for count, search_data in enumerate(genexp, 1):
         data["total"] = count
-        if json:
-            data["animes"].append(search_data)
+        data["animes"].append(search_data)
     return data
 
 def patch(keep_banner = False, log = True):
     f = animdl_search
     if keep_banner:
-        f = helpers.decorators.banner_gift_wrapper(client, __core__, check_for_updates=CHECK_FOR_UPDATES)(f)
+        f = helpers.decorators.banner_gift_wrapper()(f)
     if log:
-        f = helpers.decorators.logging_options()(
-            helpers.decorators.setup_loggers()(f)
-        )
+        f = helpers.decorators.setup_loggers()(f)
     import animdl.core.cli.commands.search
     animdl.core.cli.commands.search.animdl_search = f

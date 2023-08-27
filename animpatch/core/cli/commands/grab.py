@@ -4,25 +4,12 @@ import click
 
 from animdl.core.__version__ import __core__
 from animdl.core.codebase import providers
-from animdl.core.config import CHECK_FOR_UPDATES, DEFAULT_PROVIDER
+from animdl.core.config import DEFAULT_PROVIDER
 from animdl.core.cli import helpers
 from animdl.core.cli.http_client import client
 
-
-@click.command(
-    name="grab", help="Stream the stream links to the stdout stream for external usage."
-)
-@helpers.decorators.content_fetch_options(
-    include_quality_options=False,
-    include_special_options=False,
-)
-@helpers.decorators.automatic_selection_options()
-@helpers.decorators.logging_options()
-@helpers.decorators.setup_loggers()
-@helpers.decorators.banner_gift_wrapper(
-    client, __core__, check_for_updates=CHECK_FOR_UPDATES
-)
 def animdl_grab(query, index, **kwargs):
+    "Send the stream links for external usage."
 
     console = helpers.stream_handlers.get_console()
     console.print(
@@ -41,3 +28,10 @@ def animdl_grab(query, index, **kwargs):
     ):
         stream_url = list(helpers.ensure_extraction(client, stream_url_caller))
         click.echo(json.dumps({"episode": episode, "streams": stream_url}))
+
+def patch(keep_banner = False, log = True):
+    f = animdl_grab
+    if keep_banner:
+        f = helpers.decorators.banner_gift_wrapper()(f)
+    if log:
+        f = helpers.decorators.setup_loggers(f)
