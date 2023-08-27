@@ -68,11 +68,7 @@ def download_section(
                 for chunk in response.iter_bytes(8192):
                     chunk_size = len(chunk)
 
-                    if self.progress_bar is not None:
-                        self.progress_bar.update(chunk_size)
-
-                    if progress_bar is not None:
-                        progress_bar.update(chunk_size)
+                    self.callback(chunk_size+position, self.total)
 
                     self.write_to_file(
                         self.io_lock,
