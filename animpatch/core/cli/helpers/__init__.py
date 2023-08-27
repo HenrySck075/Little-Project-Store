@@ -1,16 +1,18 @@
+from . import banner, stream_handlers
+
+
 from ....helpers import PROGRESS_CALLBACK
-from . import banner
 import logging
 import traceback
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Generator, Optional, Tuple
+    from typing import Any, Dict, Generator, Optional
     import pathlib
 
     import httpx
 
-from animdl.core.cli.helpers import intelliq, further_extraction, SafeCaseEnum
+from animdl.core.cli.helpers import intelliq, further_extraction
 import animdl.core.cli.helpers
 from animdl.core.codebase import downloader
 from ....exc import *

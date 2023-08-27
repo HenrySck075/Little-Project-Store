@@ -1,5 +1,9 @@
+import functools
 from animdl.core.cli.helpers.constants import SOURCE_REPOSITORY
 import animdl.core.cli.helpers.banner as banner
+from animdl.core.cli.http_client import client
+from animdl.core.config import CHECK_FOR_UPDATES
+from animdl.core.__version__ import __core__
 
 def iter_banner(
     session,
@@ -25,7 +29,8 @@ def iter_banner(
 
         if tuplised_upstream > tuplised_current_version:
             yield (f"Update ↑ {upstream_version} ↓ {current_version}")
-            yield (f"To update, use: animdl update")
+            yield (f"To update, use: pip install --upgrade animdl")
 
 def patch():
     banner.iter_banner = iter_banner 
+    banner.banner_gift_wrapper = functools.partial(banner.banner_gift_wrapper, client, __core__, check_for_updates=CHECK_FOR_UPDATES) #fuck
