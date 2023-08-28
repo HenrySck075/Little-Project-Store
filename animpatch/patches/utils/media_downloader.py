@@ -3,7 +3,7 @@ import time
 from typing import Optional, Dict
 import threading, httpx
 from tqdm import tqdm
-from ..helpers import PROGRESS_CALLBACK
+from ...helpers import PROGRESS_CALLBACK
 
 def init(
     self,

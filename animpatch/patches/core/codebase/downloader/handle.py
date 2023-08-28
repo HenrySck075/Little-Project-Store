@@ -7,7 +7,7 @@ from animdl.core.codebase.downloader.handle import subautomatic, hls_download, i
 from animdl.core.codebase.downloader.ffmpeg import FFMPEG_EXTENSIONS, ffmpeg_download, has_ffmpeg
 from animdl.core.codebase.downloader.hls import HLS_STREAM_EXTENSIONS
 
-from ....helpers import PROGRESS_CALLBACK
+from .....helpers import PROGRESS_CALLBACK
 
 import animdl.utils.media_downloader as media_downloader
 import animdl.utils.serverfiles as serverfiles

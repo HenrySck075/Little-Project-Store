@@ -14,8 +14,10 @@ import animdl.core.cli.helpers as helpers, animdl.core.cli.http_client as http_c
 
 import animdl.core.cli.commands.download, logging
 
-from ....exc import DownloaderException, ExtractionError, NoContentFound
-from ....helpers import DisabledLogger, addKwargs
+from .....exc import DownloaderException, ExtractionError, NoContentFound
+from .....helpers import DisabledLogger, addKwargs
+
+console = None
 
 def animdl_download(
     query, special, quality, download_dir, idm, index, log_level, **kwargs
@@ -23,8 +25,6 @@ def animdl_download(
     r = kwargs.get("range")
 
     log = kwargs.get("logging", False)
-
-    console = helpers.stream_handlers.get_console(log)
 
     logger = logging.getLogger("downloader") if log else DisabledLogger("downloader", log_level)
 
@@ -133,9 +133,13 @@ def animdl_download(
         return {"animes": animes}
 
 def patch(keep_banner: bool = False, log = True):
+    global console
     f = animdl_download
-    if keep_banner: f = helpers.decorators.banner_gift_wrapper()(f)
-    if log: f = helpers.decorators.setup_loggers()(addKwargs(logging=True)(f))
+    if keep_banner: 
+        console = helpers.stream_handlers.get_console(log)
+        f = helpers.decorators.banner_gift_wrapper(console=console)(f)
+    if log: 
+        f = helpers.decorators.setup_loggers()(addKwargs(logging=True)(f))
     
     animdl.core.cli.commands.download.animdl_download = f
 

@@ -8,10 +8,10 @@ from animdl.core.config import DEFAULT_PROVIDER
 from animdl.core.cli import helpers
 from animdl.core.cli.http_client import client
 
+console = None
 def animdl_grab(query, index, **kwargs):
     "Send the stream links for external usage."
 
-    console = helpers.stream_handlers.get_console()
     console.print(
         "The content is outputted to [green]stdout[/] while these messages are outputted to [red]stderr[/]."
     )
@@ -32,6 +32,7 @@ def animdl_grab(query, index, **kwargs):
 def patch(keep_banner = False, log = True):
     f = animdl_grab
     if keep_banner:
-        f = helpers.decorators.banner_gift_wrapper()(f)
+        console = helpers.stream_handlers.get_console(log)
+        f = helpers.decorators.banner_gift_wrapper(console=console)(f)
     if log:
         f = helpers.decorators.setup_loggers(f)
