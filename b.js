@@ -49,9 +49,20 @@ function createElement(selector) {
   return elem
 }
 
-let btn = createElement("button.mdc-button.mdc-button--raised.downBtn")
-btn.appendChild(createElement("div.mdc-button__ripple"))
-btn.appendChild(createElement("span.mdc-button__label[innerText='Convert & Save']"))
+let style = document.createElement("style")
+style.sheet.insertRule(":root {--mdc-theme-primary: rgb(0,150,250)}")
+document.head.appendChild(style)
+function createButton(label, params = {}) {
+  let btn = createElement("button.mdc-button.mdc-button--raised.downBtn")
+  btn.appendChild(createElement("div.mdc-button__ripple"))
+  btn.appendChild(createElement(`span.mdc-button__label[innerText=${label}]`))
+  for (let e of Object.keys(params)) {
+    btn[e] = params[e]
+  }
+
+  return btn
+}
+let btn = createButton('Convert & Save')
 
 let prog = createElement('div.mdc-linear-progress[aria-valuemin="0",aria-valuemax="1",aria-valuenow="0",role="progressbar"]')
 let progBuffer = createElement('div.mdc-linear-progress__buffer')
@@ -68,20 +79,13 @@ let infoBar = createElement("aside.mdc-snackbar")
 infoBar.appendChild(createElement("div.mdc-snackbar__surface[role='status',aria-relevant='additions']"))
 infoBar.querySelector(".mdc-snackbar__surface").appendChild(createElement("div.mdc-snackbar__label[aria-atomic=false]"))
 
+let observee = {}
+
 const observer = new MutationObserver(mutations => {
   try {
-    for (let i of mutations) {
-      if (i.addedNodes.length == 1) {
-        console.log(i.addedNodes)
-        let div = i.addedNodes[0].lastChild.parentElement
-        if (div.classList.value.includes("illust-details-big")) {
-          let controls = div.querySelector(".zoom-controls")
-          controls.innerHTML = ""
-          controls.appendChild(btn)
-          div.insertBefore(prog,controls)
-          controls.appendChild(infoBar)
-        }
-      }
+    for (let i of Object.keys(observee)) {
+      let h = document.querySelector(i)
+      if (h !== null) {observee[i](h)}
     }
   } catch (e) {console.log(e.stack)}
 })
@@ -92,6 +96,58 @@ var infoController;
 observer.observe(document.body, {
   childList: true,
   subtree: true
+})
+
+function onElementExist(sel, cb, multiple=false) {
+  if (multiple) {
+    for (let h of document.querySelectorAll(sel)) {
+      cb(h)
+    }
+  }
+  else {
+    h = document.querySelector(sel)
+    if (h !== null) cb(h)
+  }
+  observee[sel] = cb
+}
+
+onElementExist(".illust-details-big", (div) => {
+  let controls = div.querySelector(".zoom-controls")
+  controls.innerHTML = ""
+  controls.appendChild(btn)
+  div.insertBefore(prog,controls)
+  controls.appendChild(infoBar)
+})
+
+function fullPath(el){ 
+  var names = []; 
+  while (el.parentNode){ 
+    if (el.id){ 
+      names.unshift('#'+el.id); break; 
+    } else { 
+      if (el==el.ownerDocument.documentElement) {
+        names.unshift(el.tagName.toLowerCase());
+      }
+    else{ 
+      for (var c=1,e=el;e.previousElementSibling;e=e.previousElementSibling,c++) {
+        names.unshift(el.tagName+":nth-child("+c+")"); 
+      } el=el.parentNode; 
+    } 
+  } 
+  return names.join(" "); }
+} // TODO: indent later
+
+onElementExist(".user-details-card.top-card .user-details-follow .ui-button", (btn) => {
+  btn.parentElement.replaceChild(createButton("Next", {click: null}))
+})
+
+onElementExist(".user-details-card:nth-child(2) .user-details-follow .ui-button", (btn) => {
+  btn.parentElement.replaceChild(createButton("Queue", {onclick: (e) => {
+    let elen = e.target
+    if (elem.dataset.queueToggled ?? false) {
+      elem.dataset.queueToggled = true
+  }
+  }}))
 })
 
 setTimeout(() => {
