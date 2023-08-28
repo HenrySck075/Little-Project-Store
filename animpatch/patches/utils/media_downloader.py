@@ -1,8 +1,10 @@
 from io import FileIO
+import time
 from typing import Optional, Dict
 import threading, httpx
 from tqdm import tqdm
-from ..core.cli.helpers.constants import PROGRESS_CALLBACK
+from ...helpers import PROGRESS_CALLBACK
+
 def init(
     self,
     session: httpx.Client,
