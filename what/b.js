@@ -1,7 +1,4 @@
-
-
-
-function createElement(selector) {
+function extractSelector(selector) {
   let tagName = selector.match(/^([^\.|#|\[]*)/g)
   if (tagName === null) {return {}}
   else {tagName = tagName[0]}
@@ -9,8 +6,26 @@ function createElement(selector) {
   let id = selector.match(/#([^\.|#|\[]*)/g)
   if (id === null) {}
   else {id = id[0].replace("#", "")}
-  let attrs = selector.match(/\[(.*)\]/g)
-  if (attrs === null) {}
+  let attraw = selector.match(/\[(.*)\]/g)
+  let attrs = {}
+  if (attraw !== null) {
+    attraw = attraw[0].replace("[", "").replace("]", "")
+    for (let i of attraw.split(",")) {
+      pair = i.split("=")
+      k=pair[0].trim()
+      v=pair[1].trim()
+      if (["'",'"'].includes(v.at(0))) {v=v.slice(1,v.length-1)}
+      if (["true","false"].includes(v)) {v=(v==="true")}
+      if (!isNaN(v)) {v= +v}
+      attrs[k] = v
+    }
+  }
+
+  return [tagName, classes, id, attrs]
+}
+
+function createElement(selector) {
+  let [tagName, classes, id, attrs] = extractSelector(selector)
 
   let elem = document.createElement(tagName)
   if (classes !== null) {
@@ -19,25 +34,20 @@ function createElement(selector) {
         }
     }
   if (id !== null) elem.id = id
-  if (attrs !== null) {
-      attrs = attrs[0].replace("[", "").replace("]", "")
-    for (let i of attrs.split(",")) {
-        pair = i.split("=")
-        k=pair[0].trim()
-        v=pair[1].trim()
-        if (["'",'"'].includes(v.at(0))) {v=v.slice(1,v.length-1)}
-        if (["true","false"].includes(v)) {v=(v==="true")}
-        if (!isNaN(v)) {v= +v}
+  if (attrs !== {}) {
+    for (let k of Object.keys(attrs)) {
+      let v = attrs[k]
 
-        if (["innerText","outerText","innerHTML"].includes(k)) {
-              elem[k]=v
-            } else {
-                  elem.setAttribute(k,v)
-                }
-        }
+      if (["innerText","outerText","innerHTML"].includes(k)) {
+        elem[k]=v
+      } else {
+        elem.setAttribute(k,v)
+      }
     }
+  }
   return elem
 }
+
 
 function createButton(label, params = {}) {
   let btn = createElement("button.mdc-button.mdc-button--raised.downBtn")
@@ -66,32 +76,40 @@ let infoBar = createElement("aside.mdc-snackbar")
 infoBar.appendChild(createElement("div.mdc-snackbar__surface[role='status',aria-relevant='additions']"))
 infoBar.querySelector(".mdc-snackbar__surface").appendChild(createElement("div.mdc-snackbar__label[aria-atomic=false]"))
 
-let observee = {}
-
-const observer = new MutationObserver(mutations => {
-  try {
-    for (let i of Object.keys(observee)) {
-      let h = document.querySelector(i)
-      if (h !== null) {observee[i](h)}
-    }
-  } catch (e) {console.log(e.stack)}
-})
+function allProvidedAttrsExist(elem, attrs) {
+  for (let k of Object.keys(attrs)) {
+    let v = attrs[k]
+    
+    // if `k` is attributes that is not visible in html file     "access using brace"      "access using getAttribute"
+    if (!(["innerText","outerText","innerHTML"].includes(k)    ?   (elem[k] == v)    :    (elem.getAttribute(k) == v))) return false
+  }
+  return true
+}
 
 var progController;
 var infoController;
 
 
-function onElementExist(sel, cb, multiple=false) {
-  if (multiple) {
-    for (let h of document.querySelectorAll(sel)) {
-      cb(h)
+function onElementExist(sel, cb, boundary = document.body) {
+  for (let h of boundary.querySelectorAll(sel)) {
+    cb(h)
+  }
+  const observer = new MutationObserver(mutations => {
+    // time complexity 🔥🔥🔥🔥🔥🔥🔥🔥🗣️🗣️🗣️🗣️🗣️
+    for (let mut of mutations) {
+      for (let i of mut.addedNodes) {
+        boundary.querySelectorAll(sel).forEach(el => {
+          console.log(i.isEqualNode(el))
+          if (i.isEqualNode(el)) cb(i)
+        })
+      }
     }
-  }
-  else {
-    h = document.querySelector(sel)
-    if (h !== null) cb(h)
-  }
-  observee[sel] = cb
+  })
+  
+  observer.observe(boundary, {
+    childList: true,
+    subtree: true
+  })
 }
 
 
@@ -113,8 +131,6 @@ function fullPath(el){
   return names.join(" "); }
 } // TODO: indent later
 
-
-
 function popInfoBar(msg, time = -1) {
   infoController.close()
   infoController.timeoutMs = (time < 0 ? -1 : time*1000)
@@ -122,25 +138,28 @@ function popInfoBar(msg, time = -1) {
   infoController.open()
 }
 
+// literally just to wait for main illust element
+function waitForElm(selector) {
+  return new Promise(resolve => {
+      if (document.querySelector(selector)) {
+          return resolve(document.querySelector(selector));
+      }
+
+      const observer = new MutationObserver(mutations => {
+          if (document.querySelector(selector)) {
+              observer.disconnect();
+              resolve(document.querySelector(selector));
+          }
+      });
+
+      observer.observe(document.body, {
+          childList: true,
+          subtree: true
+      });
+  });
+}
 
 function main(gang, nam) {
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  })
-
-  let a = document.createElement("link")
-  a.href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css"
-  a.rel="stylesheet"
-  document.head.appendChild(a)
-
-  let b=document.createElement("script")
-  b.src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"
-  document.head.appendChild(b)
-
-  let style = document.createElement("style")
-  document.head.appendChild(style)
-  style.sheet.insertRule(":root {--mdc-theme-primary: rgb(0,150,250)}")
 
   btn.addEventListener("click", () => {
     chrome.runtime.sendMessage({
@@ -152,30 +171,31 @@ function main(gang, nam) {
     })
   })
 
-  b.onload = () => {
-    mdc.ripple.MDCRipple.attachTo(btn)
-    infoController = new mdc.snackbar.MDCSnackbar(infoBar)
-    progController = new mdc.linearProgress.MDCLinearProgress(prog)
-    progController.close()
-  }
+  mdc.ripple.MDCRipple.attachTo(btn)
+  infoController = new mdc.snackbar.MDCSnackbar(infoBar)
+  progController = new mdc.linearProgress.MDCLinearProgress(prog)
+  progController.close()
 
-  onElementExist(".illust-details-big", (div) => {
-    let controls = div.querySelector(".zoom-controls")
-    controls.innerHTML = ""
-    controls.appendChild(btn)
-    div.insertBefore(prog,controls)
-    controls.appendChild(infoBar)
-  })
-
-  onElementExist(".illust-details-ugoira", a => {
+  console.log('ahwsufivbehwisuv')
+  if (document.querySelector("title").innerText.includes("ugoira")) {
+    console.log("what the heck")
     onElementExist(".segment-top.user-badge", div => {
-      let controls = div.querySelector(".usee-details-card")
+      let controls = div.querySelector(".user-details-card")
+      controls.innerHTML = ""
+      controls.appendChild(btn)
+      div.insertBefore(prog, controls)
+      controls.appendChild(infoBar)
+    })
+  } else {
+    onElementExist(".illust-details-big", (div) => {
+      console.log("que pro")
+      let controls = div.querySelector(".zoom-controls")
       controls.innerHTML = ""
       controls.appendChild(btn)
       div.insertBefore(prog,controls)
       controls.appendChild(infoBar)
     })
-  })
+  }
 }
 
 document.addEventListener("DOMContentLoaded", main)
