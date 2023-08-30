@@ -1,0 +1,21 @@
+{
+    "manifest_version": 2,
+    "name": "pixiv illust downloader",
+    "version": "1.0",
+
+    "permissions": [
+      "tabs", "downloads", "activeTab", "nativeMessaging"
+    ],
+ 
+    "description": "Thing",
+
+    "content_scripts": [{
+      "matches": ["https://*.pixiv.net/en/artworks/*"],
+      "js": ["b.js"],
+      "run_at": "document_start"
+    }],
+
+    "background": {
+      "service_worker": "a.js"
+    }
+}
