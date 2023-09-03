@@ -64,21 +64,24 @@ urlMap = {
     "Line":["lin.ee"],
     "Lit Link":["lit.link"],
     "tapeclub":["tapeclub.net"],
-    "Throne":["throne.me"],
+    "Throne":["throne.me","throne.com"],
     "Linktree":["linktr.ee"],
     "POME":["pome.ink"],
     "Mastodon":["ieji.de"]
 }
 
-def getServiceByUrl(url):
+def getServiceByUrl(url:str):
+    global droid
     url = url.lower()
     for i in urlMap.keys():
         if any(j in url for j in urlMap[i]): return i
-    
-    os.system("paplay SSNotify.wav")
-    print(f"An undefined service detected: {url}")
-    name = input("Please enter the service name: ")
-    host = input("Please enter host url: ").split(", ")
+    # linux 
+    # os.system("paplay SSNotify.wav")
+    print(f"An undefined service detected: {url}. Using host URL for name")
+    root = url[:url.find("/",9)]
+    name = root[root.find("/",root.find("/")+1):].replace("/","")
+    host = [] if name not in urlMap else urlMap[name]
+    host.append(name)
 
     urlMap[name] = host
 
@@ -102,7 +105,8 @@ urls = [
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(Y%E2%80%94Z)",
     "https://virtualyoutuber.fandom.com/wiki/List_of_minor_VTubers_(other)"
 ]
-resName = ''
+# ~~~~~~~~~~~~~~~~~~~Minor~~~~~~~~~~~~~~~~~~~
+resName = './vtnew.json'
 vtubers = []
 def minor_vtubers():
     resName = "Minor VTubers.json"
@@ -167,6 +171,8 @@ def minor_vtubers():
 
         json.dump(vtubers, open(resName,"w"), indent=4)
 
+# ~~~~~~~~~~~~~~~~~~~Major~~~~~~~~~~~~~~~~~~~
+
 def relativeURL(url):
     if "https://" not in url: url = "https://virtualyoutuber.fandom.com" + url
     return url
@@ -218,8 +224,9 @@ def major_vtubers(startFrom=None):
         prevPage = anchors[-1].attrs["href"]
     json.dump(vtubers, open(resName,"w"), indent=4)
 
-try: 
-    globals()[sys.argv[1]](*tuple(sys.argv[2:]))
+# the
+try:
+    major_vtubers(*sys.argv[1:])
 except KeyboardInterrupt:
     print("Keyboard interrupted")
     json.dump(vtubers, open(resName,"w"), indent=4)
