@@ -1,6 +1,13 @@
-import help, keys as ordkeys # patch pycord http to use bot token
-exec(open("patcho.py","r").read(),globals())
-import curses, discord, json, random, math, threading
+import help, keys as ordkeys
+import pypatch, textwrap
+pypatch.patch()
+
+import platform
+if platform.system() == "Windows":
+    print("Disconsole does not support Windows until this dumb guy switches from Textpad to curses pad (impossible)")
+    raise SystemExit(1)
+
+import curses, discord, random, math, threading
 from typing import TypeVar, Generic
 from curses import textpad
 import asyncio
@@ -169,7 +176,7 @@ def main(stdscr):
     centerX = int(curses.COLS / 2)
 
     # splash screen
-    fact = help.sliceEvery(random.choice(help.loadJson("pasta.json")),int(curses.COLS*0.9))
+    fact = textwrap.wrap(random.choice(help.loadJson("pasta.json")),int(curses.COLS*0.9))
     
     factYPos = int(curses.LINES / 2) - math.floor(len(fact) / 2)
     

@@ -1,0 +1,2 @@
+uni-curses
+py-cord
