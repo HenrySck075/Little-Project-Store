@@ -8,3 +8,8 @@ def sliceEvery(iter, nthElem:int):
 
 def loadJson(filename) -> dict | list: 
     return json.load(open(filename, "r"))
+
+def addattr(o,**h):
+    for i in h.keys():
+        setattr(o,i,h[i])
+    return o

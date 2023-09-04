@@ -1,42 +1,86 @@
 import curses, discord, json, random, math, threading
 import patcho, help # patch pycord http to use bot token
 from typing import TypedDict
+from curses import textpad
 
 cursesWindow = curses._CursesWindow
-class Windows(TypedDict, total=False):
-    channels: cursesWindow
-    messages: cursesWindow
-    guilds: cursesWindow
-    msgBar: cursesWindow
-    eventListener: cursesWindow
+cursesTextbox= textpad.Textbox
 
-class dict4cw(dict):
-    def __setitem__(self, __key: str, __value: cursesWindow) -> None:
-        __value.borderStruct = {} # pyright: ignore
-        __value.border()
-        return super().__setitem__(__key, __value)
 
-def listener(evWindow: cursesWindow):
+class keyList(list):
+    def __init__(self, iter):
+        super().__init__(iter)
+    def __getitem__(self, i):
+        if i >= self.__len__(): return -2
+        return list.__getitem__(self, i)
+# session states
+keys = keyList([])
+mode = 0 # 0 for cmd, 1 for input
+scrollTarget = ""
+focusingG = 0
+focusingCh = 0
+guilds = []
+channels = []
+messages = []
+
+
+def fieldsValidator(i):
+    global keys
+    if i == 27:
+        keys.append(27)
+    elif i == 10 or i == curses.KEY_ENTER:
+        if not (len(keys) == 1 and keys[0] == 27):
+            return 7
+    else: keys = []
+    return i
+
+def updMode(m,target:str=""):
+    global mode
+    match m:
+        case 0:
+            windows["eventListener"].touchwin()
+        case 1:
+            if target == "msgBar":
+                textpads["msgBar"].edit(fieldsValidator)
+
+    mode = m
+
+def kbListener(evWindow: cursesWindow):
     curses.halfdelay(35)
-    while True:...
+    while True:
+        match evWindow.getch():
+            case 105: # i
+                updMode(1,"msgBar")
+                break
+            case 113: # q
+                updMode(0)
+            case 115: # s
+                if len(keys) == 0: keys.append(115)
+                elif keys[0] == 27: ... # search message
+            case 103: # g 
+                if keys[0] == 27:
+                    # scrolling server list 
+                    "a"
+            case 27:
+                keys.append(27)
+            case curses.KEY_REFRESH:...
 
-def focus(win: cursesWindow):
-    try: win.borderStruct
-    except AttributeError: return
-    
-    win.attron(curses.COLOR_YELLOW)
-    win.border(**win.borderStruct)
-    win.attroff(curses.COLOR_YELLOW)
-    win.refresh()
+
+def border(win:cursesWindow,ls=curses.ACS_VLINE,rs=curses.ACS_VLINE,ts=curses.ACS_HLINE,bs=curses.ACS_HLINE,tl=curses.ACS_ULCORNER,tr=curses.ACS_URCORNER,bl=curses.ACS_LLCORNER,br=curses.ACS_LRCORNER,**padparams):
+    win.border(ls,rs,ts,bs,tl,tr,bl,br)
+    try: win.refresh(**padparams)
+    except TypeError: win.refresh()
 
 def main():
-    global windows, colorable
-    conf: dict = dict4cw(help.loadJson("config.json")) # pyright: ignore
-    windows: Windows = {}
+    global windows, colorable, client, textpads
+    conf: dict = help.loadJson("config.json") # pyright: ignore
+    windows: dict[str,cursesWindow] = {}
+    textpads: dict[str,cursesTextbox] = {}
+    messageWindows = []
 
     # init curses
     stdscr = curses.initscr()
-
+    
     curses.noecho()
     curses.cbreak(False)
     colorable = curses.has_colors() and curses.can_change_color()
@@ -66,11 +110,15 @@ def main():
     @client.event 
     async def on_ready():
         windows["eventListener"] = curses.newwin(1,curses.COLS,curses.COLS-1,0)
-        windows["guilds"] = curses.newwin(curses.LINES,7,0,0)
-        windows["channels"] = curses.newwin(curses.LINES,12,0,7)
-
-
+        windows["guilds"] = stdscr.subpad(curses.LINES,7,0,0)
+        windows["channels"] = stdscr.subpad(curses.LINES,12,0,7)
+        windows["messages"] = stdscr.subpad(curses.LINES-1,curses.COLS-19,0,19)
+        windows["msgBorder"] = stdscr.subpad(4,curses.COLS-21,curses.LINES-6,20)
+        textpads["msgBar"] = textpad.Textbox(windows["msgBorder"].subwin(2,curses.COLS-19,curses.LINES-5,21))
+        
+        border(windows["channels"])
         windows["eventListener"].touchwin()
+        windows["eventListener"].keypad(True)
 
     # connect
     client.run(conf["token"])
