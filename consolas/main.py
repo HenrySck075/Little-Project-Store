@@ -1,6 +1,6 @@
 import traceback, json
-import help, keys as ordkeys
-import pypatch, textwrap
+
+import pypatch, textwrap, help
 pypatch.patch()
 
 import platform
@@ -13,7 +13,8 @@ from typing import TypeVar, Generic, Callable
 import asyncio
 from rich.traceback import install
 install(show_locals=True)
-
+import discord.utils
+from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
 from prompt_toolkit.buffer import Buffer
@@ -58,12 +59,14 @@ def render_guilds(x=0):
     gwin.content.children = container # pyright: ignore
     app._redraw()
 
-def render_channels(gid:int):
+async def render_channels(gid:int):
     global channels, windows
-    channels = [(i.type, i.name,i.id) for i in client.get_guild(gid).channels] # pyright: ignore
+    h = await discord.utils.get_or_fetch(client,"guild",id=gid)
+    ch = [(i.type, i.name,i.id,i.position) for i in h.channels] # pyright: ignore
     cwin = windows["channels"]
-    container = []
-    for i in channels:
+    container = [Window()]*len(ch)
+    channels = [(1,"2",3,4)]*len(ch)
+    for i in ch:
         chIcon = ""
         match i[0].value:
             case 0: chIcon = "\uf4df"
@@ -76,15 +79,16 @@ def render_channels(gid:int):
             case 15: chIcon = "\U000f028c"
         
         if "music" in i[1]: chIcon = "\U000f02cb"
-        container.append(Window(FormattedTextControl(chIcon+" "+i[1]),width=22,height=1))
+        container[i[3]] = Window(FormattedTextControl(chIcon+" "+i[1]),width=22,height=1)
+        channels[i[3]] = i
 
-    # cwin.refresh(0,11,x,0,curses.LINES-5,curses.COLS-19)
     cwin.content.children = container # pyright: ignore
+    app.layout.focus(container[-1])
     app._redraw()
 
 async def render_messages(cid:int):
     global messages, windows
-    stfupyright: discord.TextChannel = client.get_channel(cid) # pyright: ignore
+    stfupyright: discord.TextChannel = await discord.utils.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content) async for i in stfupyright.history(limit = 50)]
     container = []
     for i in messages:
@@ -107,15 +111,15 @@ def keybind_lore():
         global scrollTarget, mode
         scrollTarget = "guilds"
         mode = 2
-        windows[scrollTarget].content.get_children()[scrollCursorPos[scrollTarget]].style = selectHighlight # pyright: ignore
+        windows[scrollTarget].content.get_children()[scrollCursorPos[scrollTarget]].style = tc.selectHighlight # pyright: ignore
 
-    @kb.add("s","c", filter=Condition(lambda: mode == 2 and scrollTarget == "channels"))
+    @kb.add("s","c", filter=Condition(lambda:len(channels)!=0))
     def scrollChannel(e: KeyPressEvent):
         global scrollTarget, mode
         scrollTarget = "channels"
         mode = 2
         st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
-        windows[scrollTarget].content.get_children()[scrollCursorPos[st]].style = selectHighlight # pyright: ignore
+        windows[scrollTarget].content.get_children()[scrollCursorPos[st]].style = tc.selectHighlight # pyright: ignore
 
     @kb.add("up", filter=Condition(lambda: scrollTarget != ""))
     def sup(e: KeyPressEvent):
@@ -126,7 +130,7 @@ def keybind_lore():
             limbo = win[i]
             un = win[i+1]
             un.style = "" # pyright: ignore
-            limbo.style = selectHighlight # pyright: ignore
+            limbo.style = tc.selectHighlight # pyright: ignore
             scrollCursorPos[st]-=1
             app.layout.focus(limbo)
 
@@ -135,7 +139,7 @@ def keybind_lore():
         global focusingG
         st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
         if (i:=scrollCursorPos[st]+1) < len((win:=windows[scrollTarget].content.get_children())):
-            win[i].style = selectHighlight # pyright: ignore
+            win[i].style = tc.selectHighlight # pyright: ignore
             win[i-1].style = "" # pyright: ignore
             scrollCursorPos[st]+=1
             app.layout.focus(win[i])
@@ -144,14 +148,15 @@ def keybind_lore():
     async def click(e):
         global mode, scrollTarget, focusingG, focusingCh
         if mode == 2 and scrollTarget == "guilds":
-            render_channels(guilds[scrollCursorPos[scrollTarget]][1])
+            await render_channels(guilds[scrollCursorPos[scrollTarget]][1])
             windows[scrollTarget].content.get_children()[scrollCursorPos[scrollTarget]].style=""
             focusingG = guilds[scrollCursorPos[scrollTarget]][1]
             scrollTarget = "channels"
         elif mode == 2 and scrollTarget == "channels":
             st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
-            await render_messages(channels[scrollCursorPos[st]][2])
-            focusingCh = channels[scrollCursorPos[st]][2]
+            chInfo = channels[scrollCursorPos[st]]
+            await render_messages(chInfo[2])
+            focusingCh = chInfo[2]
             mode = 0
             scrollTarget=""
 
@@ -175,14 +180,19 @@ def keybind_lore():
     return kb
  
 
-selectHighlight = "bg:gray fg:black"
+class ThemeColors:
+    selectHighlight = "bg:gray fg:black"
+    mainBg = "bg:#363940"
+    secondaryBg = "bg:#212226"
+tc = ThemeColors()
 async def main():
     global windows, client, app, inputBoxes
     conf = help.loadJson("config.json")
     windows = {
-        "guilds": ScrollablePane(HSplit([Window()],width=12),show_scrollbar=False),
-        "channels":ScrollablePane(HSplit([Window()],width=22),show_scrollbar=False),
-        "messageContent":ScrollablePane(HSplit([Window()])),
+        "guilds": ScrollablePane(HSplit([Window()],style=tc.secondaryBg,width=12),show_scrollbar=False),
+        "channels":ScrollablePane(HSplit([Window()],width=22,style=tc.mainBg),show_scrollbar=False),
+        "messageContent":ScrollablePane(HSplit([Window()],style=tc.mainBg), max_available_height=848940300),
+        "VerticalLine": Window(char=" ", style="class:line,vertical-line "+tc.secondaryBg, width=1)
     }
     def t(**kwargs):
         buf = Buffer()
@@ -198,15 +208,19 @@ async def main():
     app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb)
 
     tent = discord.Intents.all()
+    tent.messages = True
+    tent.message_content = True
     client = discord.Client(intents=tent)
 
     @client.event 
     async def on_ready():
         mainw = VSplit([
             windows["guilds"],
+            windows["VerticalLine"],
             windows["channels"],
+            windows["VerticalLine"],
             windows["messages"]
-        ],padding=1,padding_char="|")
+        ])
 
         app.layout.container = mainw
 
@@ -216,6 +230,7 @@ async def main():
 
     @client.event
     async def on_message(i: discord.Message):
+        print(focusingCh, i.channel.id)
         if focusingCh == i.channel.id:
             msg = (i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content)
             windows["messageContent"].content.children.insert(0, HSplit([
@@ -225,10 +240,11 @@ async def main():
             ],height=1,padding=4,padding_char=""),
             Window(FormattedTextControl(msg[4]),wrap_lines=True)
         ]))
+        app.layout.focus(windows["messageContent"].content.children[-1])
 
     @client.event
     async def on_error(*no, **noo):
         traceback.print_exc(file=open("tb","a"))
-    await asyncio.wait([asyncio.create_task(client.start(token=conf["token"])), asyncio.create_task(app.run_async())])# pyright: ignore
+    with patch_stdout(): await asyncio.wait([asyncio.create_task(client.start(token=conf["token"])), asyncio.create_task(app.run_async())])# pyright: ignore
 
 asyncio.run(main())
