@@ -1,15 +1,13 @@
 import traceback, json
+from prompt_toolkit.layout.containers import AnyContainer, Container, VerticalAlign
+
+from prompt_toolkit.layout.dimension import AnyDimension, Dimension
 
 import pypatch, textwrap, help
 pypatch.patch()
 
-import platform
-if platform.system() == "Windows":
-    print("Disconsole does not support Windows until this dumb guy switches from Textpad to curses pad (impossible)")
-    raise SystemExit(1)
-
-import discord, random, math, threading
-from typing import TypeVar, Generic, Callable
+import discord
+from typing import Callable, Sequence, TypeVar, Generic
 import asyncio
 from rich.traceback import install
 install(show_locals=True)
@@ -19,12 +17,12 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.filters import Condition
-from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
+from prompt_toolkit.key_binding import KeyBindings, KeyBindingsBase, KeyPressEvent
 
 
 _KT = TypeVar("_KT",contravariant=True)
 _VT = TypeVar("_VT",contravariant=True)
-
+    
 class DefaultDict(dict, Generic[_KT,_VT]):
     def __init__(self, map, default:_VT = None):
         super().__init__(map)
@@ -83,7 +81,6 @@ async def render_channels(gid:int):
         channels[i[3]] = i
 
     cwin.content.children = container # pyright: ignore
-    app.layout.focus(container[-1])
     app._redraw()
 
 async def render_messages(cid:int):
@@ -91,16 +88,21 @@ async def render_messages(cid:int):
     stfupyright: discord.TextChannel = await discord.utils.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content) async for i in stfupyright.history(limit = 50)]
     container = []
+    lastUser = 0
     for i in messages:
-        container.insert(0, HSplit([
-            VSplit([
+        h=HSplit([
+            Window(FormattedTextControl(i[4],focusable=True),wrap_lines=True)
+        ])
+        if i[0] != lastUser:
+            h.children.insert(0, VSplit([
                 Window(FormattedTextControl(i[2],"fg:"+i[1])),
                 Window(FormattedTextControl(i[3].strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
-            ],height=1,padding=4,padding_char=""),
-            Window(FormattedTextControl(i[4]),wrap_lines=True)
-        ]))
+            ],height=1))
+        container.insert(0, h)
+        lastUser = i[0]
     mwin = windows["messageContent"]
     mwin.content.children = container # pyright: ignore
+    app.layout.focus(container[-1])
     app._redraw()
 
 def keybind_lore():
@@ -118,10 +120,17 @@ def keybind_lore():
         global scrollTarget, mode
         scrollTarget = "channels"
         mode = 2
-        st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
+        st = scrollTarget+"_"+str(focusingG)
         windows[scrollTarget].content.get_children()[scrollCursorPos[st]].style = tc.selectHighlight # pyright: ignore
 
-    @kb.add("up", filter=Condition(lambda: scrollTarget != ""))
+    @kb.add("s","m", filter=Condition(lambda:len(messages)!=0))
+    def scrollMessages(e: KeyPressEvent):
+        global scrollTarget, mode
+        scrollTarget = "messageContent"
+        mode = 2
+        st = scrollTarget+"_"+str(focusingCh)
+        windows[scrollTarget].content.get_children()[scrollCursorPos[st]].style = tc.msgFocusHighlight # pyright: ignore
+
     def sup(e: KeyPressEvent):
         global focusingG
         st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
@@ -130,19 +139,22 @@ def keybind_lore():
             limbo = win[i]
             un = win[i+1]
             un.style = "" # pyright: ignore
-            limbo.style = tc.selectHighlight # pyright: ignore
+            limbo.style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
             scrollCursorPos[st]-=1
             app.layout.focus(limbo)
+    kb.add("up", filter=Condition(lambda: scrollTarget != ""))(sup)
+    kb.add("<scroll-up>", filter=Condition(lambda: scrollTarget != ""))(sup)
 
-    @kb.add("down", filter=Condition(lambda: scrollTarget != ""))
     def sdown(e: KeyPressEvent):
         global focusingG
         st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
         if (i:=scrollCursorPos[st]+1) < len((win:=windows[scrollTarget].content.get_children())):
-            win[i].style = tc.selectHighlight # pyright: ignore
+            win[i].style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
             win[i-1].style = "" # pyright: ignore
             scrollCursorPos[st]+=1
             app.layout.focus(win[i])
+    kb.add("down", filter=Condition(lambda: scrollTarget != ""))(sdown)
+    kb.add("<scroll-down>", filter=Condition(lambda: scrollTarget != ""))(sdown)
 
     @kb.add("enter")
     async def click(e):
@@ -184,7 +196,9 @@ class ThemeColors:
     selectHighlight = "bg:gray fg:black"
     mainBg = "bg:#363940"
     secondaryBg = "bg:#212226"
+    msgFocusHighlight = "bg:#2F3238"
 tc = ThemeColors()
+
 async def main():
     global windows, client, app, inputBoxes
     conf = help.loadJson("config.json")
@@ -198,7 +212,7 @@ async def main():
         buf = Buffer()
         return (Window(BufferControl(buf),**kwargs), buf)
     inputBoxes = {
-        "messageInput": t(height = 2, wrap_lines=True),
+        "messageInput": t(height = 2, wrap_lines=True, style = tc.secondaryBg),
     }
     windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"][0]]) # pyright: ignore
     
@@ -206,7 +220,16 @@ async def main():
 
     lay = Layout(HSplit([Window(),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)]))
     app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb)
+        
+    import platform
+    if platform.system() == "Windows":
+        from ctypes import windll, pointer, c_ulong
+        from ctypes.wintypes import DWORD, HANDLE
 
+        h = DWORD()
+        handle = HANDLE(windll.kernel32.GetStdHandle(c_ulong(-10)))
+        windll.kernel32.GetConsoleMode(handle, pointer(h))
+        windll.kernel32.SetConsoleMode(handle, h.value | 0x0001)
     tent = discord.Intents.all()
     tent.messages = True
     tent.message_content = True
@@ -231,7 +254,6 @@ async def main():
 
     @client.event
     async def on_message(i: discord.Message):
-        print(focusingCh, i.channel.id)
         if focusingCh == i.channel.id:
             msg = (i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content)
             windows["messageContent"].content.children.insert(0, HSplit([
