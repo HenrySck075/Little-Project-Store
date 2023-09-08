@@ -19,10 +19,11 @@ from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, KeyBindingsBase, KeyPressEvent
 
-
 _KT = TypeVar("_KT",contravariant=True)
 _VT = TypeVar("_VT",contravariant=True)
-    
+
+help.DisconsoleFormatter(style=help.DisconsoleStyle())    
+
 class DefaultDict(dict, Generic[_KT,_VT]):
     def __init__(self, map, default:_VT = None):
         super().__init__(map)
@@ -32,10 +33,6 @@ class DefaultDict(dict, Generic[_KT,_VT]):
         try:
             return super().__getitem__(__key)
         except KeyError: return self.default_value
-    
-    def __setitem__(self, __key: _KT, __value: _VT) -> None:
-        super().__setitem__(__key, __value)
-        json.dump(self, open('dict',"w"))
 # session states
 mode = 0 # 0 for cmd, 1 for input, 2 for scrolling
 scrollTarget = ""
@@ -86,13 +83,15 @@ async def render_channels(gid:int):
 async def render_messages(cid:int):
     global messages, windows
     stfupyright: discord.TextChannel = await discord.utils.get_or_fetch(client, "channel", cid) # pyright: ignore
-    messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content) async for i in stfupyright.history(limit = 50)]
+    messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments) async for i in stfupyright.history(limit = 50)]
     container = []
     lastUser = 0
     for i in messages:
         h=HSplit([
             Window(FormattedTextControl(i[4],focusable=True),wrap_lines=True)
         ])
+        for attach in i[5]:
+            h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,"fg:#00A8FC")))
         if i[0] != lastUser:
             h.children.insert(0, VSplit([
                 Window(FormattedTextControl(i[2],"fg:"+i[1])),

@@ -23,3 +23,24 @@ def modifyValue(dic:h, key, stuff) -> h:
     return dic
 
 
+from pygments.lexer import RegexLexer
+from pygments.style import Style
+from pygments.formatter import Formatter
+from pygments.token import _TokenType
+DisconsoleToken = _TokenType().Disconsole
+
+class DisconsoleLexer(RegexLexer):
+    tokens = {
+        "root": [
+            (r'[a-zA-Z]*:\/\/(\S*)', DisconsoleToken.URL)
+        ]
+    }
+
+class DisconsoleStyle(Style):
+    styles = {
+        DisconsoleToken.URL: 'bg:#00A8FC'
+    }
+
+class DisconsoleFormatter(Formatter):
+    def __init__(self, **opt):
+        super().__init__(**opt)
