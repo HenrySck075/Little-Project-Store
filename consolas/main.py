@@ -212,6 +212,7 @@ async def main():
     tent.message_content = True
     client = discord.Client(intents=tent)
 
+
     @client.event 
     async def on_ready():
         mainw = VSplit([
