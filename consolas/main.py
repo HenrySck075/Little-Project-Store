@@ -1,3 +1,5 @@
+from ctypes import LittleEndianStructure
+from datetime import datetime
 import traceback, json
 from prompt_toolkit.layout.containers import AnyContainer, Container, VerticalAlign
 
@@ -17,12 +19,30 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.filters import Condition
-from prompt_toolkit.key_binding import KeyBindings, KeyBindingsBase, KeyPressEvent
+from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
+from prompt_toolkit.formatted_text import PygmentsTokens
+from prompt_toolkit.styles.pygments import style_from_pygments_cls
+import prompt_toolkit 
+import pygments
 
 _KT = TypeVar("_KT",contravariant=True)
 _VT = TypeVar("_VT",contravariant=True)
 
-help.DisconsoleFormatter(style=help.DisconsoleStyle())    
+class ThemeColors:
+    selectHighlight = "bg:gray fg:black"
+    mainBg = "bg:#363940"
+    secondaryBg = "bg:#212226"
+    msgFocusHighlight = "bg:#2F3238"
+    url = "fg:#00A8FC"
+tc = ThemeColors()
+
+class TypingList(list):
+    def __init__(self, *ok):
+        super().__init__(*ok)
+
+    def __setitem__(self, k: int, v: discord.User | discord.Member):
+        global windows
+        if len(self) != 0:...
 
 class DefaultDict(dict, Generic[_KT,_VT]):
     def __init__(self, map, default:_VT = None):
@@ -39,6 +59,7 @@ scrollTarget = ""
 scrollCursorPos = DefaultDict[str,int]({},0)
 focusingG = 0
 focusingCh = 0
+lastUser = 0
 guilds = []
 channels = []
 messages = []
@@ -56,11 +77,12 @@ def render_guilds(x=0):
 
 async def render_channels(gid:int):
     global channels, windows
-    h = await discord.utils.get_or_fetch(client,"guild",id=gid)
-    ch = [(i.type, i.name,i.id,i.position) for i in h.channels] # pyright: ignore
+    h: discord.Guild = await discord.utils.get_or_fetch(client,"guild",id=gid)
+    thisUser: discord.Member = await discord.utils.get_or_fetch(h, "member", client.user.id) # pyright: ignore
+    ch = [(i.type, i.name,i.id,i.position, i.permissions_for(thisUser)) for i in h.channels] # pyright: ignore
     cwin = windows["channels"]
     container = [Window()]*len(ch)
-    channels = [(1,"2",3,4)]*len(ch)
+    channels = [(discord.ChannelType.text,"2",3,4,discord.Permissions())]*len(ch)
     for i in ch:
         chIcon = ""
         match i[0].value:
@@ -75,23 +97,28 @@ async def render_channels(gid:int):
         
         if "music" in i[1]: chIcon = "\U000f02cb"
         container[i[3]] = Window(FormattedTextControl(chIcon+" "+i[1]),width=22,height=1)
-        channels[i[3]] = i
+        channels[i[3]] = i # pyright: ignore
+    n = 0
+    for idx,i in enumerate(channels): # loop again to purge unviewable channels from the list
+        if i[4].view_channel == False: continue
+        del channels[idx-n]
+        del container[idx-n]
+        n+=1
 
     cwin.content.children = container # pyright: ignore
     app._redraw()
 
 async def render_messages(cid:int):
-    global messages, windows
+    global messages, windows, lastUser
     stfupyright: discord.TextChannel = await discord.utils.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments) async for i in stfupyright.history(limit = 50)]
     container = []
-    lastUser = 0
     for i in messages:
         h=HSplit([
-            Window(FormattedTextControl(i[4],focusable=True),wrap_lines=True)
+            Window(FormattedTextControl(PygmentsTokens(list(pygments.lex(i[4],help.DisconsoleLexer()))),focusable=True),wrap_lines=True)
         ])
         for attach in i[5]:
-            h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,"fg:#00A8FC")))
+            h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
         if i[0] != lastUser:
             h.children.insert(0, VSplit([
                 Window(FormattedTextControl(i[2],"fg:"+i[1])),
@@ -191,12 +218,6 @@ def keybind_lore():
     return kb
  
 
-class ThemeColors:
-    selectHighlight = "bg:gray fg:black"
-    mainBg = "bg:#363940"
-    secondaryBg = "bg:#212226"
-    msgFocusHighlight = "bg:#2F3238"
-tc = ThemeColors()
 
 async def main():
     global windows, client, app, inputBoxes
@@ -205,6 +226,7 @@ async def main():
         "guilds": ScrollablePane(HSplit([Window()],style=tc.secondaryBg,width=12),show_scrollbar=False),
         "channels":ScrollablePane(HSplit([Window()],width=22,style=tc.mainBg),show_scrollbar=False),
         "messageContent":ScrollablePane(HSplit([Window()],style=tc.mainBg), max_available_height=848940300),
+        "typing":VSplit([],height=1, style=tc.secondaryBg),
         "VerticalLine": Window(char=" ", style="class:line,vertical-line "+tc.secondaryBg, width=1)
     }
     def t(**kwargs):
@@ -214,11 +236,29 @@ async def main():
         "messageInput": t(height = 2, wrap_lines=True, style = tc.secondaryBg),
     }
     windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"][0]]) # pyright: ignore
+    windows["typingList"] = Window(FormattedTextControl())
     
+    win, buf = t(width=3, height=1, style=tc.secondaryBg)
+    windows["typingAnim"] = win
+    async def typingAnim():
+        seq = [
+            "\U000f09de\U000f0765\U000f0765",
+            "\U000f0765\U000f09de\U000f0765",
+            "\U000f0765\U000f0765\U000f09de",
+            "\U000f0765\U000f0765\U000f0765"
+        ]
+        idx = 0
+        while True:
+            buf.cursor_position=0
+            buf.text=seq[idx]
+            await asyncio.sleep(0.5)
+            idx += 1 
+            if idx == 4: idx = 0
+
     kb = keybind_lore() 
 
     lay = Layout(HSplit([Window(),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)]))
-    app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb)
+    app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb,style=style_from_pygments_cls(help.DisconsoleStyle))
         
     import platform
     if platform.system() == "Windows":
@@ -232,6 +272,7 @@ async def main():
     tent = discord.Intents.all()
     tent.messages = True
     tent.message_content = True
+    tent.typing = True
     client = discord.Client(intents=tent)
 
 
@@ -253,20 +294,33 @@ async def main():
 
     @client.event
     async def on_message(i: discord.Message):
+        global lastUser
         if focusingCh == i.channel.id:
-            msg = (i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content)
-            windows["messageContent"].content.children.insert(0, HSplit([
-            VSplit([
-                Window(FormattedTextControl(msg[2],"fg:"+msg[1])),
-                Window(FormattedTextControl(msg[3].strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
-            ],height=1,padding=4,padding_char=""),
-            Window(FormattedTextControl(msg[4]),wrap_lines=True)
-        ]))
-        app.layout.focus(windows["messageContent"].content.children[-1])
+            msg = (i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments)        
+            h=HSplit([
+                Window(FormattedTextControl(msg[4],focusable=True),wrap_lines=True)
+            ])
+            for attach in msg[5]:
+                h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
+            if msg[0] != lastUser:
+                h.children.insert(0, VSplit([
+                    Window(FormattedTextControl(msg[2],"fg:"+msg[1])),
+                    Window(FormattedTextControl(msg[3].strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
+                ],height=1))
+
+            windows["messageContent"].content.children.append(h)
+            lastUser = msg[0]
+
+
+            app.layout.focus(h)
+
+    @client.event 
+    async def on_typing(ch: discord.TextChannel, usr: discord.Member, when: datetime):
+        if ch.id == focusingCh:...
 
     @client.event
     async def on_error(*no, **noo):
         traceback.print_exc(file=open("tb","a"))
-    with patch_stdout(): await asyncio.wait([asyncio.create_task(client.start(token=conf["token"])), asyncio.create_task(app.run_async())])# pyright: ignore
+    with patch_stdout(): await asyncio.wait([asyncio.create_task(client.start(token=conf["token"])), asyncio.create_task(app.run_async()), asyncio.create_task(typingAnim())])# pyright: ignore
 
 asyncio.run(main())
