@@ -1,28 +1,22 @@
-from ctypes import LittleEndianStructure
 from datetime import datetime
-import traceback, json
-from prompt_toolkit.layout.containers import AnyContainer, Container, VerticalAlign
+import traceback
 
-from prompt_toolkit.layout.dimension import AnyDimension, Dimension
+import help
 
-import pypatch, textwrap, help
-pypatch.patch()
-
-import discord
-from typing import Callable, Sequence, TypeVar, Generic
+import selfcord
+from typing import TypeVar, Generic
 import asyncio
 from rich.traceback import install
 install(show_locals=True)
-import discord.utils
+import help
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.application import Application
-from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
+from prompt_toolkit.layout import HorizontalAlign, Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
 from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.styles.pygments import style_from_pygments_cls
-import prompt_toolkit 
 import pygments
 
 _KT = TypeVar("_KT",contravariant=True)
@@ -40,7 +34,7 @@ class TypingList(list):
     def __init__(self, *ok):
         super().__init__(*ok)
 
-    def __setitem__(self, k: int, v: discord.User | discord.Member):
+    def __setitem__(self, k: int, v: selfcord.User | selfcord.Member):
         global windows
         if len(self) != 0:...
 
@@ -77,12 +71,12 @@ def render_guilds(x=0):
 
 async def render_channels(gid:int):
     global channels, windows
-    h: discord.Guild = await discord.utils.get_or_fetch(client,"guild",id=gid)
-    thisUser: discord.Member = await discord.utils.get_or_fetch(h, "member", client.user.id) # pyright: ignore
+    h: selfcord.Guild = await help.get_or_fetch(client,"guild",gid)
+    thisUser: selfcord.Member = await help.get_or_fetch(h, "member", client.user.id) # pyright: ignore
     ch = [(i.type, i.name,i.id,i.position, i.permissions_for(thisUser)) for i in h.channels] # pyright: ignore
     cwin = windows["channels"]
     container = [Window()]*len(ch)
-    channels = [(discord.ChannelType.text,"2",3,4,discord.Permissions())]*len(ch)
+    channels = [(selfcord.ChannelType.text,"2",3,4,selfcord.Permissions())]*len(ch)
     for i in ch:
         chIcon = ""
         match i[0].value:
@@ -110,7 +104,7 @@ async def render_channels(gid:int):
 
 async def render_messages(cid:int):
     global messages, windows, lastUser
-    stfupyright: discord.TextChannel = await discord.utils.get_or_fetch(client, "channel", cid) # pyright: ignore
+    stfupyright: selfcord.TextChannel = await help.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments) async for i in stfupyright.history(limit = 50)]
     container = []
     for i in messages:
@@ -254,10 +248,11 @@ async def main():
             await asyncio.sleep(0.5)
             idx += 1 
             if idx == 4: idx = 0
+            if app.is_running == False: return
 
     kb = keybind_lore() 
 
-    lay = Layout(HSplit([Window(),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)]))
+    lay = Layout(HSplit([HSplit([Window(),Window(FormattedTextControl("\n\U000f066f"),align=WindowAlign.CENTER)]),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)]))
     app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb,style=style_from_pygments_cls(help.DisconsoleStyle))
         
     import platform
@@ -269,11 +264,7 @@ async def main():
         handle = HANDLE(windll.kernel32.GetStdHandle(c_ulong(-10)))
         windll.kernel32.GetConsoleMode(handle, pointer(h))
         windll.kernel32.SetConsoleMode(handle, h.value | 0x0001)
-    tent = discord.Intents.all()
-    tent.messages = True
-    tent.message_content = True
-    tent.typing = True
-    client = discord.Client(intents=tent)
+    client = selfcord.Client()
 
 
     @client.event 
@@ -285,6 +276,7 @@ async def main():
             windows["VerticalLine"],
             windows["messages"]
         ])
+        asyncio.ensure_future(typingAnim(),loop=asyncio.get_event_loop())
 
         app.layout.container = mainw
 
@@ -293,7 +285,7 @@ async def main():
         render_guilds()
 
     @client.event
-    async def on_message(i: discord.Message):
+    async def on_message(i: selfcord.Message):
         global lastUser
         if focusingCh == i.channel.id:
             msg = (i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments)        
@@ -315,12 +307,12 @@ async def main():
             app.layout.focus(h)
 
     @client.event 
-    async def on_typing(ch: discord.TextChannel, usr: discord.Member, when: datetime):
+    async def on_typing(ch: selfcord.TextChannel, usr: selfcord.Member, when: datetime):
         if ch.id == focusingCh:...
 
     @client.event
     async def on_error(*no, **noo):
         traceback.print_exc(file=open("tb","a"))
-    with patch_stdout(): await asyncio.wait([asyncio.create_task(client.start(token=conf["token"])), asyncio.create_task(app.run_async()), asyncio.create_task(typingAnim())])# pyright: ignore
+    with patch_stdout(): await asyncio.wait([asyncio.create_task(client.start(token=conf["token"])), asyncio.create_task(app.run_async())])# pyright: ignore
 
 asyncio.run(main())
