@@ -24,11 +24,11 @@ def modifyValue(dic:h, key, stuff) -> h:
         dic[key] = stuff(dic[key])
     return dic
 
-async def get_or_fetch(obj, attr, id, default = None, **kwargs) -> Any:
-    call = await getattr(obj,"get_"+attr)(id, **kwargs)
+def get_or_fetch(obj, attr, id, default = None, **kwargs) -> Any:
+    call = getattr(obj,"get_"+attr)(id, **kwargs)
     if call is None:
         try:
-            call = await getattr(obj, ("fetch_" if hasattr(obj,"fetch_"+attr) else "_fetch_")+attr)(id, **kwargs)
+            call = getattr(obj, ("fetch_" if hasattr(obj,"fetch_"+attr) else "_fetch_")+attr)(id, **kwargs)
         except (selfcord.HTTPException, ValueError):
             return default
     return call

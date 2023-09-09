@@ -35,9 +35,7 @@ class TypingList(list):
         super().__init__(*ok)
 
     def __setitem__(self, k: int, v: selfcord.User | selfcord.Member):
-        global windows
-        if len(self) != 0:...
-
+        list.__setitem__(self,k,v)
 class DefaultDict(dict, Generic[_KT,_VT]):
     def __init__(self, map, default:_VT = None):
         super().__init__(map)
@@ -72,7 +70,7 @@ def render_guilds(x=0):
 async def render_channels(gid:int):
     global channels, windows
     h: selfcord.Guild = client.get_guild(gid) # pyright: ignore
-    thisUser: selfcord.Member = client.get_user(client.user.id)# pyright: ignore
+    thisUser: selfcord.Member = h.get_member(client.user.id)# pyright: ignore
     ch = [(i.type, i.name,i.id,i.position, i.permissions_for(thisUser)) for i in h.channels] # pyright: ignore
     cwin = windows["channels"]
     container = [Window()]*len(ch)
@@ -104,7 +102,7 @@ async def render_channels(gid:int):
 
 async def render_messages(cid:int):
     global messages, windows, lastUser
-    stfupyright: selfcord.TextChannel = await help.get_or_fetch(client, "channel", cid) # pyright: ignore
+    stfupyright: selfcord.TextChannel = help.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments) async for i in stfupyright.history(limit = 50)]
     container = []
     for i in messages:
