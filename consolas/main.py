@@ -11,7 +11,7 @@ install(show_locals=True)
 import help
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.application import Application
-from prompt_toolkit.layout import HorizontalAlign, Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
+from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
@@ -71,8 +71,8 @@ def render_guilds(x=0):
 
 async def render_channels(gid:int):
     global channels, windows
-    h: selfcord.Guild = await help.get_or_fetch(client,"guild",gid)
-    thisUser: selfcord.Member = await help.get_or_fetch(h, "member", client.user.id) # pyright: ignore
+    h: selfcord.Guild = client.get_guild(gid) # pyright: ignore
+    thisUser: selfcord.Member = client.get_user(client.user.id)# pyright: ignore
     ch = [(i.type, i.name,i.id,i.position, i.permissions_for(thisUser)) for i in h.channels] # pyright: ignore
     cwin = windows["channels"]
     container = [Window()]*len(ch)
@@ -252,7 +252,7 @@ async def main():
 
     kb = keybind_lore() 
 
-    lay = Layout(HSplit([HSplit([Window(),Window(FormattedTextControl("\n\U000f066f"),align=WindowAlign.CENTER)]),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)]))
+    lay = Layout(HSplit([HSplit([Window(),Window(FormattedTextControl("\n\U000f066f"),align=WindowAlign.CENTER)]),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)],style=tc.mainBg))
     app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb,style=style_from_pygments_cls(help.DisconsoleStyle))
         
     import platform
