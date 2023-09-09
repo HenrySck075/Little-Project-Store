@@ -23,10 +23,13 @@ _KT = TypeVar("_KT",contravariant=True)
 _VT = TypeVar("_VT",contravariant=True)
 
 class ThemeColors:
-    selectHighlight = "bg:gray fg:black"
-    mainBg = "bg:#363940"
-    secondaryBg = "bg:#212226"
+    focusHighlight = "bg:#35373C"
+    mainBg = "bg:#313338"
+    channelListBg = "bg:#2B2D31"
+    secondaryBg = "bg:#232428"
+    selectHighlight = "bg:#404249"
     msgFocusHighlight = "bg:#2F3238"
+    msgMentionHighlight = "bg:#444037"
     url = "fg:#00A8FC"
 tc = ThemeColors()
 
@@ -71,13 +74,14 @@ async def render_channels(gid:int):
     global channels, windows
     h: selfcord.Guild = client.get_guild(gid) # pyright: ignore
     thisUser: selfcord.Member = h.get_member(client.user.id)# pyright: ignore
-    ch = [(i.type, i.name,i.id,i.position, i.permissions_for(thisUser)) for i in h.channels] # pyright: ignore
+    ch = h.channels # pyright: ignore
     cwin = windows["channels"]
-    container = [Window()]*len(ch)
-    channels = [(selfcord.ChannelType.text,"2",3,4,selfcord.Permissions())]*len(ch)
+    container = [None]*len(ch) # type: list[Window] # pyright: ignore
+    channels = [None]*len(ch) # type: list[selfcord.abc.GuildChannel] #pyright: ignore
     for i in ch:
+        if i.permissions_for(thisUser).view_channel == False: continue
         chIcon = ""
-        match i[0].value:
+        match i.type.value:
             case 0: chIcon = "\uf4df"
             case 1: chIcon = "\uf456"
             case 2: chIcon = "\ue638"
@@ -87,37 +91,48 @@ async def render_channels(gid:int):
             case 13: chIcon = "\U000f1749"
             case 15: chIcon = "\U000f028c"
         
-        if "music" in i[1]: chIcon = "\U000f02cb"
-        container[i[3]] = Window(FormattedTextControl(chIcon+" "+i[1]),width=22,height=1)
-        channels[i[3]] = i # pyright: ignore
-    n = 0
-    for idx,i in enumerate(channels): # loop again to purge unviewable channels from the list
-        if i[4].view_channel == False: continue
-        del channels[idx-n]
-        del container[idx-n]
-        n+=1
+        if "music" in i.name: chIcon = "\U000f02cb"
+        container[i.position] = Window(FormattedTextControl(chIcon+" "+i.name),width=22,height=1)
+        channels[i.position] = i # pyright: ignore
+    channels = list(filter(lambda h: h is not None, channels))
+    container = list(filter(lambda h: h is not None, container))
 
     cwin.content.children = container # pyright: ignore
     app._redraw()
 
+async def create_msg_window(i: selfcord.Message):
+    global lastUser
+    h=HSplit([
+        Window(FormattedTextControl(PygmentsTokens(list(pygments.lex(i.content,help.DisconsoleLexer()))),focusable=True),wrap_lines=True)
+    ])
+    for attach in i.attachments:
+        h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
+    if i.author.id != lastUser:
+        h.children.insert(0, VSplit([
+            Window(FormattedTextControl(i.author.display_name,"fg:"+i.author.color.__str__())),
+            Window(FormattedTextControl(i.created_at.strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
+        ],height=1))
+    if (msgref:=i.reference) is not None:
+        ch: selfcord.TextChannel = channels[scrollCursorPos[st]] # pyright: ignore
+        msg = await ch.fetch_message(msgref.message_id)# pyright: ignore
+        h.children.insert(0, VSplit([
+            Window(FormattedTextControl("\U000f0772"),width=1),
+            Window(FormattedTextControl(msg.author.name+"    ",style="bg:"+msg.author.color.__str__()),width=len(msg.author.name)+4),
+            Window(FormattedTextControl(msg.content),height=1,wrap_lines=False)
+        ]))
+    if client.user in i.mentions:
+        h.style = tc.msgMentionHighlight
+    lastUser = i.author.id
+    return h
+
 async def render_messages(cid:int):
     global messages, windows, lastUser
     stfupyright: selfcord.TextChannel = help.get_or_fetch(client, "channel", cid) # pyright: ignore
-    messages = [(i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments) async for i in stfupyright.history(limit = 50)]
+    messages = [i async for i in stfupyright.history(limit = 50)]
     container = []
     for i in messages:
-        h=HSplit([
-            Window(FormattedTextControl(PygmentsTokens(list(pygments.lex(i[4],help.DisconsoleLexer()))),focusable=True),wrap_lines=True)
-        ])
-        for attach in i[5]:
-            h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
-        if i[0] != lastUser:
-            h.children.insert(0, VSplit([
-                Window(FormattedTextControl(i[2],"fg:"+i[1])),
-                Window(FormattedTextControl(i[3].strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
-            ],height=1))
+        h = create_msg_window(i)
         container.insert(0, h)
-        lastUser = i[0]
     mwin = windows["messageContent"]
     mwin.content.children = container # pyright: ignore
     app.layout.focus(container[-1])
@@ -185,8 +200,8 @@ def keybind_lore():
         elif mode == 2 and scrollTarget == "channels":
             st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
             chInfo = channels[scrollCursorPos[st]]
-            await render_messages(chInfo[2])
-            focusingCh = chInfo[2]
+            await render_messages(chInfo.id)
+            focusingCh = chInfo.id
             mode = 0
             scrollTarget=""
 
@@ -216,7 +231,7 @@ async def main():
     conf = help.loadJson("config.json")
     windows = {
         "guilds": ScrollablePane(HSplit([Window()],style=tc.secondaryBg,width=12),show_scrollbar=False),
-        "channels":ScrollablePane(HSplit([Window()],width=22,style=tc.mainBg),show_scrollbar=False),
+        "channels":ScrollablePane(HSplit([Window()],width=22,style=tc.channelListBg),show_scrollbar=False),
         "messageContent":ScrollablePane(HSplit([Window()],style=tc.mainBg), max_available_height=848940300),
         "typing":VSplit([],height=1, style=tc.secondaryBg),
         "VerticalLine": Window(char=" ", style="class:line,vertical-line "+tc.secondaryBg, width=1)
@@ -225,7 +240,7 @@ async def main():
         buf = Buffer()
         return (Window(BufferControl(buf),**kwargs), buf)
     inputBoxes = {
-        "messageInput": t(height = 2, wrap_lines=True, style = tc.secondaryBg),
+        "messageInput": t(height = 2, wrap_lines=True, style = tc.mainBg),
     }
     windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"][0]]) # pyright: ignore
     windows["typingList"] = Window(FormattedTextControl())
@@ -270,7 +285,13 @@ async def main():
         mainw = VSplit([
             windows["guilds"],
             windows["VerticalLine"],
-            windows["channels"],
+            HSplit([
+                windows["channels"],
+                HSplit([
+                    Window(FormattedTextControl(client.user.display_name)),# pyright: ignore
+                    Window(FormattedTextControl(client.user.name,style="fg:#6B6F77"))# pyright: ignore
+                ], height=2, style=tc.secondaryBg)
+            ]),
             windows["VerticalLine"],
             windows["messages"]
         ])
@@ -286,21 +307,9 @@ async def main():
     async def on_message(i: selfcord.Message):
         global lastUser
         if focusingCh == i.channel.id:
-            msg = (i.id, i.author.color.__str__(), i.author.name, i.created_at, i.content, i.attachments)        
-            h=HSplit([
-                Window(FormattedTextControl(msg[4],focusable=True),wrap_lines=True)
-            ])
-            for attach in msg[5]:
-                h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
-            if msg[0] != lastUser:
-                h.children.insert(0, VSplit([
-                    Window(FormattedTextControl(msg[2],"fg:"+msg[1])),
-                    Window(FormattedTextControl(msg[3].strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
-                ],height=1))
-
+            h = await create_msg_window(i)
             windows["messageContent"].content.children.append(h)
-            lastUser = msg[0]
-
+            lastUser = i.author.id
 
             app.layout.focus(h)
 
