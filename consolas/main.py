@@ -1,6 +1,8 @@
 from datetime import datetime
 import traceback
 
+from prompt_toolkit.widgets import TextArea
+
 import help
 
 import selfcord
@@ -17,21 +19,11 @@ from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
 from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.styles.pygments import style_from_pygments_cls
-import pygments
 
 _KT = TypeVar("_KT",contravariant=True)
 _VT = TypeVar("_VT",contravariant=True)
 
-class ThemeColors:
-    focusHighlight = "bg:#35373C"
-    mainBg = "bg:#313338"
-    channelListBg = "bg:#2B2D31"
-    secondaryBg = "bg:#232428"
-    selectHighlight = "bg:#404249"
-    msgFocusHighlight = "bg:#2F3238"
-    msgMentionHighlight = "bg:#444037"
-    url = "fg:#00A8FC"
-tc = ThemeColors()
+tc = help.ThemeColors()
 
 class TypingList(list):
     def __init__(self, *ok):
@@ -58,6 +50,7 @@ lastUser = 0
 guilds = []
 channels = []
 messages = []
+userColorsCache = {}
 
 def render_guilds(x=0):
     global guilds, windows
@@ -102,24 +95,40 @@ async def render_channels(gid:int):
 
 async def create_msg_window(i: selfcord.Message):
     global lastUser
-    h=HSplit([
-        Window(FormattedTextControl(PygmentsTokens(list(pygments.lex(i.content,help.DisconsoleLexer()))),focusable=True),wrap_lines=True)
-    ])
+    if i.content != "":
+        h=HSplit([
+            Window(FormattedTextControl(PygmentsTokens(await help.format_message(client, i)),focusable=True),wrap_lines=True)
+        ])
+    else:
+        h=HSplit([])
     for attach in i.attachments:
         h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
     if i.author.id != lastUser:
+        usr = i.author
+        if type(usr) == selfcord.Member:
+            for r in usr.roles:
+                if r.color.value != selfcord.Colour.from_str("#B9BBBE").value:
+                    userColorsCache[i.author.id][i.channel.guild.id] = r.color.__str__()
+                    break
+        else:
+            userColorsCache[(i.author.id)] = "#B9BBBE"
         h.children.insert(0, VSplit([
-            Window(FormattedTextControl(i.author.display_name,"fg:"+i.author.color.__str__())),
+            Window(FormattedTextControl(i.author.display_name,"fg:"+"")),
             Window(FormattedTextControl(i.created_at.strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
         ],height=1))
     if (msgref:=i.reference) is not None:
-        ch: selfcord.TextChannel = channels[scrollCursorPos[st]] # pyright: ignore
-        msg = await ch.fetch_message(msgref.message_id)# pyright: ignore
-        h.children.insert(0, VSplit([
-            Window(FormattedTextControl("\U000f0772"),width=1),
-            Window(FormattedTextControl(msg.author.name+"    ",style="bg:"+msg.author.color.__str__()),width=len(msg.author.name)+4),
-            Window(FormattedTextControl(msg.content),height=1,wrap_lines=False)
-        ]))
+        msg = msgref.resolved
+        if type(msg) == selfcord.Message:
+            h.children.insert(0, VSplit([
+                Window(FormattedTextControl("\U000f0772"),width=1),
+                Window(FormattedTextControl(msg.author.name+"  ",style="fg:"+msg.author.color.__str__()),width=len(msg.author.name)+2),
+                Window(FormattedTextControl(msg.content),height=1,wrap_lines=False, style="fg:gray")
+            ]))
+        else:
+            h.children.insert(0, VSplit([
+                Window(FormattedTextControl("\U000f0772")),
+                Window(FormattedTextControl("Cannot load the message." if type(msg) == None else "Original message was deleted.", style="italic fg:gray"))
+            ]))
     if client.user in i.mentions:
         h.style = tc.msgMentionHighlight
     lastUser = i.author.id
@@ -127,11 +136,11 @@ async def create_msg_window(i: selfcord.Message):
 
 async def render_messages(cid:int):
     global messages, windows, lastUser
-    stfupyright: selfcord.TextChannel = help.get_or_fetch(client, "channel", cid) # pyright: ignore
+    stfupyright: selfcord.TextChannel = await help.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [i async for i in stfupyright.history(limit = 50)]
     container = []
     for i in messages:
-        h = create_msg_window(i)
+        h = await create_msg_window(i)
         container.insert(0, h)
     mwin = windows["messageContent"]
     mwin.content.children = container # pyright: ignore
@@ -189,7 +198,7 @@ def keybind_lore():
     kb.add("down", filter=Condition(lambda: scrollTarget != ""))(sdown)
     kb.add("<scroll-down>", filter=Condition(lambda: scrollTarget != ""))(sdown)
 
-    @kb.add("enter")
+    @kb.add("enter", filter=Condition(lambda: mode != 1))
     async def click(e):
         global mode, scrollTarget, focusingG, focusingCh
         if mode == 2 and scrollTarget == "guilds":
@@ -202,8 +211,9 @@ def keybind_lore():
             chInfo = channels[scrollCursorPos[st]]
             await render_messages(chInfo.id)
             focusingCh = chInfo.id
-            mode = 0
-            scrollTarget=""
+            mode = 2
+            scrollTarget="messageContent"
+            scrollCursorPos["messageContent_"+str(focusingCh)] = len(windows["messageContent"].content.children)-1
 
     @kb.add("escape", filter=Condition(lambda: mode != 0))
     def ret(e):
@@ -216,6 +226,15 @@ def keybind_lore():
             if scrollTarget == "channels": 
                 scrollTarget = "guilds"
                 focusingG = 0
+        if mode == 1:
+            mode = 2 
+            app.layout.focus(windows["messageContent"].content.children[scrollCursorPos["messageContent_"+str(focusingCh)]])
+
+    @kb.add("i", filter=Condition(lambda: mode != 1 and focusingCh != 0))
+    def input(e):
+        global mode
+        app.layout.focus(inputBoxes["messageInput"])
+        mode = 1
 
     @kb.add("c-q")
     async def shut(e: KeyPressEvent):
@@ -240,9 +259,9 @@ async def main():
         buf = Buffer()
         return (Window(BufferControl(buf),**kwargs), buf)
     inputBoxes = {
-        "messageInput": t(height = 2, wrap_lines=True, style = tc.mainBg),
+        "messageInput": TextArea(height = 2, style = tc.mainBg,dont_extend_width=True),
     }
-    windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"][0]]) # pyright: ignore
+    windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"]]) # pyright: ignore
     windows["typingList"] = Window(FormattedTextControl())
     
     win, buf = t(width=3, height=1, style=tc.secondaryBg)
@@ -299,7 +318,7 @@ async def main():
 
         app.layout.container = mainw
 
-        app._redraw()
+        app.invalidate()
 
         render_guilds()
 
