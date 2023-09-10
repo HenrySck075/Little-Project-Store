@@ -3,13 +3,9 @@ import traceback
 
 from prompt_toolkit.widgets import TextArea
 
-import help
-
 import selfcord
 from typing import TypeVar, Generic
 import asyncio
-from rich.traceback import install
-install(show_locals=True)
 import help
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.application import Application
@@ -94,7 +90,7 @@ async def render_channels(gid:int):
     app._redraw()
 
 async def create_msg_window(i: selfcord.Message):
-    global lastUser
+    global userColorsCache
     if i.content != "":
         h=HSplit([
             Window(FormattedTextControl(PygmentsTokens(await help.format_message(client, i)),focusable=True),wrap_lines=True)
@@ -103,25 +99,16 @@ async def create_msg_window(i: selfcord.Message):
         h=HSplit([])
     for attach in i.attachments:
         h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
-    if i.author.id != lastUser:
-        usr = i.author
-        if type(usr) == selfcord.Member:
-            for r in usr.roles:
-                if r.color.value != selfcord.Colour.from_str("#B9BBBE").value:
-                    userColorsCache[i.author.id][i.channel.guild.id] = r.color.__str__()
-                    break
-        else:
-            userColorsCache[(i.author.id)] = "#B9BBBE"
-        h.children.insert(0, VSplit([
-            Window(FormattedTextControl(i.author.display_name,"fg:"+"")),
-            Window(FormattedTextControl(i.created_at.strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
-        ],height=1))
+    h.children.insert(0, VSplit([
+        Window(FormattedTextControl(i.author.display_name,"fg:"+i.author.color.__str__())),
+        Window(FormattedTextControl(i.created_at.strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
+    ],height=1))
     if (msgref:=i.reference) is not None:
         msg = msgref.resolved
         if type(msg) == selfcord.Message:
             h.children.insert(0, VSplit([
                 Window(FormattedTextControl("\U000f0772"),width=1),
-                Window(FormattedTextControl(msg.author.name+"  ",style="fg:"+msg.author.color.__str__()),width=len(msg.author.name)+2),
+                Window(FormattedTextControl(msg.author.name+"  ",style="fg:"+msg.author.color.__str__()),width=len(msg.author.name)+2), # pyright: ignore
                 Window(FormattedTextControl(msg.content),height=1,wrap_lines=False, style="fg:gray")
             ]))
         else:
@@ -131,7 +118,6 @@ async def create_msg_window(i: selfcord.Message):
             ]))
     if client.user in i.mentions:
         h.style = tc.msgMentionHighlight
-    lastUser = i.author.id
     return h
 
 async def render_messages(cid:int):
@@ -178,7 +164,7 @@ def keybind_lore():
         st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
         if (i:=scrollCursorPos[st]-1) >= 0:
             win = windows[scrollTarget].content.get_children()
-            limbo = win[i]
+            limbo = win[i] # type: Window
             un = win[i+1]
             un.style = "" # pyright: ignore
             limbo.style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
@@ -225,7 +211,8 @@ def keybind_lore():
                 scrollTarget = ""
             if scrollTarget == "channels": 
                 scrollTarget = "guilds"
-                focusingG = 0
+            if scrollTarget == "messageContent":
+                scrollTarget = "channels"
         if mode == 1:
             mode = 2 
             app.layout.focus(windows["messageContent"].content.children[scrollCursorPos["messageContent_"+str(focusingCh)]])

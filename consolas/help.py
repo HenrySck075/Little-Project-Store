@@ -1,9 +1,9 @@
 import json
-from typing import Iterable, TypeVar, Any
+from typing import TypeVar, Any, Union
 import pygments
 
 import selfcord
-
+MessageableChannel = Union[selfcord.TextChannel, selfcord.VoiceChannel, selfcord.StageChannel, selfcord.Thread, selfcord.DMChannel, selfcord.PartialMessageable, selfcord.GroupChannel]
 class MissingSentinel:
     def __repr__(self):
         return "..."
