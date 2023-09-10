@@ -1,7 +1,7 @@
-import json
-from typing import TypeVar, Any, Union
+import json, sys
+from types import TracebackType
+from typing import TypeVar, Any, Union, cast
 import pygments
-
 import selfcord
 MessageableChannel = Union[selfcord.TextChannel, selfcord.VoiceChannel, selfcord.StageChannel, selfcord.Thread, selfcord.DMChannel, selfcord.PartialMessageable, selfcord.GroupChannel]
 class MissingSentinel:
@@ -11,6 +11,21 @@ class MissingSentinel:
         return self.__repr__()
 MISSING = MissingSentinel()
 # funky functions
+def get_traceback_from_context(context: dict[str, Any]) -> TracebackType | None:
+    """
+    Get the traceback object from the context.
+    """
+    exception = context.get("exception")
+    if exception:
+        if hasattr(exception, "__traceback__"):
+            return cast(TracebackType, exception.__traceback__)
+        else:
+            # call_exception_handler() is usually called indirectly
+            # from an except block. If it's not the case, the traceback
+            # is undefined...
+            return sys.exc_info()[2]
+
+    return None
 def loadJson(filename) -> dict | list: 
     return json.load(open(filename, "r"))
 

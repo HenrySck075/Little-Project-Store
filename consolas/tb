@@ -13,3 +13,11 @@ Traceback (most recent call last):
     if msg[0] != lastUser:
                  ^^^^^^^^
 UnboundLocalError: cannot access local variable 'lastUser' where it is not associated with a value
+Traceback (most recent call last):
+  File "C:\Users\HenryS\AppData\Local\Programs\Python\Python311\Lib\site-packages\selfcord\client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "C:\Users\HenryS\Desktop\GitHub Repositories\Little Project Store\lps\consolas\main.py", line 320, in on_message
+    app.layout.focus(h)
+  File "C:\Users\HenryS\AppData\Local\Programs\Python\Python311\Lib\site-packages\prompt_toolkit\layout\layout.py", line 163, in focus
+    raise ValueError(
+ValueError: Invalid value. Container cannot be focused: <prompt_toolkit.layout.containers.HSplit object at 0x000001BC8060C150>

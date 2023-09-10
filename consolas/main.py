@@ -4,7 +4,7 @@ import traceback
 from prompt_toolkit.widgets import TextArea
 
 import selfcord
-from typing import TypeVar, Generic
+from typing import Any, TypeVar, Generic
 import asyncio
 import help
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -93,14 +93,14 @@ async def create_msg_window(i: selfcord.Message):
     global userColorsCache
     if i.content != "":
         h=HSplit([
-            Window(FormattedTextControl(PygmentsTokens(await help.format_message(client, i)),focusable=True),wrap_lines=True)
+            Window(FormattedTextControl(PygmentsTokens(await help.format_message(client, i))),wrap_lines=True)
         ])
     else:
         h=HSplit([])
     for attach in i.attachments:
         h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
     h.children.insert(0, VSplit([
-        Window(FormattedTextControl(i.author.display_name,"fg:"+i.author.color.__str__())),
+        Window(FormattedTextControl(i.author.display_name,"fg:"+i.author.color.__str__()+" bold",focusable=True)),
         Window(FormattedTextControl(i.created_at.strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
     ],height=1))
     if (msgref:=i.reference) is not None:
@@ -108,7 +108,7 @@ async def create_msg_window(i: selfcord.Message):
         if type(msg) == selfcord.Message:
             h.children.insert(0, VSplit([
                 Window(FormattedTextControl("\U000f0772"),width=1),
-                Window(FormattedTextControl(msg.author.name+"  ",style="fg:"+msg.author.color.__str__()),width=len(msg.author.name)+2), # pyright: ignore
+                Window(FormattedTextControl(msg.author.name+"  ",style="fg:"+msg.author.color.__str__()+" bold"),width=len(msg.author.name)+2), # pyright: ignore
                 Window(FormattedTextControl(msg.content),height=1,wrap_lines=False, style="fg:gray")
             ]))
         else:
@@ -246,9 +246,9 @@ async def main():
         buf = Buffer()
         return (Window(BufferControl(buf),**kwargs), buf)
     inputBoxes = {
-        "messageInput": TextArea(height = 2, style = tc.mainBg,dont_extend_width=True),
+        "messageInput": TextArea(height = 2, style = tc.mainBg+" fg:white",dont_extend_width=True),
     }
-    windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"]]) # pyright: ignore
+    windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"]], style = tc.mainBg) # pyright: ignore
     windows["typingList"] = Window(FormattedTextControl())
     
     win, buf = t(width=3, height=1, style=tc.secondaryBg)
@@ -273,18 +273,8 @@ async def main():
 
     lay = Layout(HSplit([HSplit([Window(),Window(FormattedTextControl("\n\U000f066f"),align=WindowAlign.CENTER)]),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)],style=tc.mainBg))
     app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb,style=style_from_pygments_cls(help.DisconsoleStyle))
-        
-    import platform
-    if platform.system() == "Windows":
-        from ctypes import windll, pointer, c_ulong
-        from ctypes.wintypes import DWORD, HANDLE
-
-        h = DWORD()
-        handle = HANDLE(windll.kernel32.GetStdHandle(c_ulong(-10)))
-        windll.kernel32.GetConsoleMode(handle, pointer(h))
-        windll.kernel32.SetConsoleMode(handle, h.value | 0x0001)
+    
     client = selfcord.Client()
-
 
     @client.event 
     async def on_ready():
@@ -301,7 +291,8 @@ async def main():
             windows["VerticalLine"],
             windows["messages"]
         ])
-        asyncio.ensure_future(typingAnim(),loop=asyncio.get_event_loop())
+        loop=asyncio.get_event_loop()
+        asyncio.ensure_future(typingAnim(),loop=loop)
 
         app.layout.container = mainw
 
