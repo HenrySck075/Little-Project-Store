@@ -2,6 +2,7 @@ from datetime import datetime
 import traceback
 
 import selfcord
+
 from typing import Any, TypeVar, Generic
 import asyncio, os
 os.environ["PROMPT_TOOLKIT_COLOR_DEPTH"] = "DEPTH_24_BIT"
@@ -107,9 +108,9 @@ async def create_msg_window(i: selfcord.Message):
     for attach in i.attachments:
         h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
     h.children.insert(0, Window(FormattedTextControl([
-        ("fg:"+i.author.color.__str__()+" bold",i.author.display_name),
+        ("fg:"+i.author.color.__str__()+" bold",i.author.display_name+"              "),
         ("fg:gray",i.created_at.strftime("%m/%d/%Y, %H:%M:%S"))
-    ]),height=1))
+    ],focusable=True),height=1))
     if (msgref:=i.reference) is not None:
         msg = msgref.resolved
         if type(msg) == selfcord.Message:

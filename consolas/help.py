@@ -1,4 +1,4 @@
-import json, sys
+import json, sys, os, platform, shutil
 import re
 from types import TracebackType
 from typing import TypeVar, Any, Union, cast
@@ -6,6 +6,13 @@ import pygments, selfcord
 from nullsafe import undefined,_
 from ninety84 import DisconsoleToken, DshMarkdown, DisconsoleLexer, DisconsoleStyle, ThemeColors
 MessageableChannel = Union[selfcord.TextChannel, selfcord.VoiceChannel, selfcord.StageChannel, selfcord.Thread, selfcord.DMChannel, selfcord.PartialMessageable, selfcord.GroupChannel]
+from prompt_toolkit.layout import FloatContainer, Float, Container 
+from prompt_toolkit.widgets import VerticalLine, HorizontalLine
+
+system = platform.system 
+if system == "Linux" and shutil.which("termux-change-repo") is not None:
+    system = "Termux"
+
 class MissingSentinel:
     def __repr__(self):
         return "..."
@@ -76,3 +83,11 @@ async def format_message(client: selfcord.Client, msg: selfcord.Message):
             v = re.findall(r"\[[^\[|\]]+\]\([a-zA-Z]*:\/\/(\S*)\)", v)[0][0]
         h.append((ttype,v))
     return h
+
+def box_container(container:Container, tl="┎",tr="┒",bl="┖",br="┚",lr="┃",tb="━"): ...
+
+def push_notification(title="Lorem ipsum", content="suichan pettan"):
+    "Create a notification (cross-platform)"
+
+    match system:
+        case "Windows": os.system(f'powershell ./windowsNotif.ps1 "{content}" "{title}"')
