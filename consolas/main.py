@@ -1,12 +1,13 @@
 from datetime import datetime
 import traceback
 
-from prompt_toolkit.widgets import TextArea
-
 import selfcord
 from typing import Any, TypeVar, Generic
-import asyncio
+import asyncio, os
+os.environ["PROMPT_TOOLKIT_COLOR_DEPTH"] = "DEPTH_24_BIT"
+
 import help
+from prompt_toolkit.widgets import TextArea
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, ScrollablePane, FormattedTextControl, WindowAlign, BufferControl
@@ -44,8 +45,14 @@ focusingG = 0
 focusingCh = 0
 lastUser = 0
 guilds = []
+# TODO: turn these into dict to store objects when switching to other
 channels = []
 messages = []
+widgetIndex = {
+    "guilds": [],
+    "channels": [],
+    "messages": []
+}
 userColorsCache = {}
 
 def render_guilds(x=0):
@@ -99,35 +106,39 @@ async def create_msg_window(i: selfcord.Message):
         h=HSplit([])
     for attach in i.attachments:
         h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
-    h.children.insert(0, VSplit([
-        Window(FormattedTextControl(i.author.display_name,"fg:"+i.author.color.__str__()+" bold",focusable=True)),
-        Window(FormattedTextControl(i.created_at.strftime("%m/%d/%Y, %H:%M:%S"),"fg:gray"))
-    ],height=1))
+    h.children.insert(0, Window(FormattedTextControl([
+        ("fg:"+i.author.color.__str__()+" bold",i.author.display_name),
+        ("fg:gray",i.created_at.strftime("%m/%d/%Y, %H:%M:%S"))
+    ]),height=1))
     if (msgref:=i.reference) is not None:
         msg = msgref.resolved
         if type(msg) == selfcord.Message:
-            h.children.insert(0, VSplit([
-                Window(FormattedTextControl("\U000f0772"),width=1),
-                Window(FormattedTextControl(msg.author.name+"  ",style="fg:"+msg.author.color.__str__()+" bold"),width=len(msg.author.name)+2), # pyright: ignore
-                Window(FormattedTextControl(msg.content),height=1,wrap_lines=False, style="fg:gray")
-            ]))
+            h.children.insert(0, Window(FormattedTextControl([
+                ("","\U000f0772"),
+                ("fg:"+msg.author.color.__str__(), msg.author.display_name),
+                ("fg:gray",msg.content)
+            ]),height=1))
         else:
-            h.children.insert(0, VSplit([
-                Window(FormattedTextControl("\U000f0772")),
-                Window(FormattedTextControl("Cannot load the message." if type(msg) == None else "Original message was deleted.", style="italic fg:gray"))
-            ]))
+            h.children.insert(0, Window(FormattedTextControl([
+                ("","\U000f0772"),
+                ("italic fg:gray","Cannot load the message." if type(msg) == None else "Original message was deleted.")
+            ])))
     if client.user in i.mentions:
         h.style = tc.msgMentionHighlight
     return h
 
-async def render_messages(cid:int):
+async def render_messages(cid:int, oldContainer = []):
     global messages, windows, lastUser
     stfupyright: selfcord.TextChannel = await help.get_or_fetch(client, "channel", cid) # pyright: ignore
     messages = [i async for i in stfupyright.history(limit = 50)]
     container = []
-    for i in messages:
+    idx = 0
+    for i in messages.__reversed__():
         h = await create_msg_window(i)
-        container.insert(0, h)
+        container.append(h)
+        widgetIndex["messages"].append(i.id)
+        idx+=1
+    container.extend(oldContainer)
     mwin = windows["messageContent"]
     mwin.content.children = container # pyright: ignore
     app.layout.focus(container[-1])
@@ -220,7 +231,7 @@ def keybind_lore():
     @kb.add("i", filter=Condition(lambda: mode != 1 and focusingCh != 0))
     def input(e):
         global mode
-        app.layout.focus(inputBoxes["messageInput"])
+        app.layout.focus(windows["messageInput"])
         mode = 1
 
     @kb.add("c-q")
@@ -233,22 +244,20 @@ def keybind_lore():
 
 
 async def main():
-    global windows, client, app, inputBoxes
+    global windows, client, app
     conf = help.loadJson("config.json")
     windows = {
         "guilds": ScrollablePane(HSplit([Window()],style=tc.secondaryBg,width=12),show_scrollbar=False),
         "channels":ScrollablePane(HSplit([Window()],width=22,style=tc.channelListBg),show_scrollbar=False),
         "messageContent":ScrollablePane(HSplit([Window()],style=tc.mainBg), max_available_height=848940300),
         "typing":VSplit([],height=1, style=tc.secondaryBg),
-        "VerticalLine": Window(char=" ", style="class:line,vertical-line "+tc.secondaryBg, width=1)
+        "VerticalLine": Window(char=" ", style="class:line,vertical-line "+tc.secondaryBg, width=1),
+        "messageInput": TextArea(height = 2, style = tc.mainBg+" fg:white",dont_extend_width=True)
     }
     def t(**kwargs):
         buf = Buffer()
         return (Window(BufferControl(buf),**kwargs), buf)
-    inputBoxes = {
-        "messageInput": TextArea(height = 2, style = tc.mainBg+" fg:white",dont_extend_width=True),
-    }
-    windows["messages"] = HSplit([windows["messageContent"], inputBoxes["messageInput"]], style = tc.mainBg) # pyright: ignore
+    windows["messages"] = HSplit([windows["messageContent"], windows["messageInput"]], style = tc.mainBg) # pyright: ignore
     windows["typingList"] = Window(FormattedTextControl())
     
     win, buf = t(width=3, height=1, style=tc.secondaryBg)
@@ -307,8 +316,18 @@ async def main():
             h = await create_msg_window(i)
             windows["messageContent"].content.children.append(h)
             lastUser = i.author.id
+            app.invalidate()
 
             app.layout.focus(h)
+
+    @client.event
+    async def on_message_delete(msg: selfcord.Message):
+        global messages, windows
+        if msg.channel.id != focusingCh: return
+        index = widgetIndex["messages"].index(msg.channel.id)
+        del messages[index]
+        windows["messageContent"].content.children.__delitem__(index)
+        app.invalidate()
 
     @client.event 
     async def on_typing(ch: selfcord.TextChannel, usr: selfcord.Member, when: datetime):

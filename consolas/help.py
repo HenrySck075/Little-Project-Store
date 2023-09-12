@@ -1,8 +1,10 @@
 import json, sys
+import re
 from types import TracebackType
 from typing import TypeVar, Any, Union, cast
-import pygments
-import selfcord
+import pygments, selfcord
+from nullsafe import undefined,_
+from ninety84 import DisconsoleToken, DshMarkdown, DisconsoleLexer, DisconsoleStyle, ThemeColors
 MessageableChannel = Union[selfcord.TextChannel, selfcord.VoiceChannel, selfcord.StageChannel, selfcord.Thread, selfcord.DMChannel, selfcord.PartialMessageable, selfcord.GroupChannel]
 class MissingSentinel:
     def __repr__(self):
@@ -55,40 +57,6 @@ async def get_or_fetch(obj, attr, id, default = MISSING, **kwargs) -> Any:
             if default != MISSING:return default
             else: raise
     return call
-# Pygments
-from pygments.lexer import RegexLexer
-from pygments.style import Style
-from pygments.formatter import Formatter
-from pygments.token import _TokenType
-DisconsoleToken = _TokenType().Disconsole
-class ThemeColors:
-    focusHighlight = "bg:#35373C"
-    mainBg = "bg:#313338"
-    channelListBg = "bg:#2B2D31"
-    secondaryBg = "bg:#232428"
-    selectHighlight = "bg:#404249"
-    msgFocusHighlight = "bg:#2F3238"
-    msgMentionHighlight = "bg:#444037"
-    url = "fg:#00A8FC"
-    mentionTextHighlight = "bg:#4e4e74"
-tc = ThemeColors()
-
-class DisconsoleLexer(RegexLexer):
-    tokens = {
-        "root": [
-            (r'[a-zA-Z]*:\/\/(\S*)', DisconsoleToken.URL),
-            (r'<#(\d*)>', DisconsoleToken.MentionChannel),
-            (r'<@(\d*)>', DisconsoleToken.MentionUser)
-        ]
-    }
-
-class DisconsoleStyle(Style):
-    styles = {
-        DisconsoleToken.URL: tc.url.replace("fg:",""),
-        DisconsoleToken.MentionChannel: tc.mentionTextHighlight,
-        DisconsoleToken.MentionUser: tc.mentionTextHighlight
-    }
-
 
 async def format_message(client: selfcord.Client, msg: selfcord.Message):
     h = []
@@ -96,8 +64,15 @@ async def format_message(client: selfcord.Client, msg: selfcord.Message):
         if ttype == DisconsoleToken.MentionChannel:
             v = "# " + (await get_or_fetch(client, "channel", int(v.replace("<#","").replace(">","")))).name
         if ttype == DisconsoleToken.MentionUser:
-            id = int(v.replace("<@","").replace(">",""))
-            usr: selfcord.User | selfcord.Member = await (get_or_fetch(client, "user", id) if type(msg.channel) == selfcord.DMChannel else get_or_fetch(msg.channel.guild, "member", id))
-            v = "@ " + usr.display_name
+            if "<" in v:
+                id = int(v.replace("<@","").replace(">",""))
+                usr: selfcord.User | selfcord.Member = await (get_or_fetch(client, "user", id) if type(msg.channel) == selfcord.DMChannel else get_or_fetch(msg.channel.guild, "member", id))
+                v = "@ " + usr.display_name
+        if ttype == DisconsoleToken.MentionRole:
+            id = int(v.replace("<@&","").replace(">",""))
+            role = _(_(msg).guild).get_role(id) # pyright: ignore
+            v = "@ "+role.name if role is not None else "deleted-role" # pyright: ignore
+        if ttype == DshMarkdown.URL:
+            v = re.findall(r"\[[^\[|\]]+\]\([a-zA-Z]*:\/\/(\S*)\)", v)[0][0]
         h.append((ttype,v))
     return h
