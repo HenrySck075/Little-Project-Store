@@ -97,7 +97,7 @@ async def render_channels(gid:int):
     cwin.content.children = container # pyright: ignore
     app._redraw()
 
-async def create_msg_window(i: selfcord.Message):
+async def create_msg_window(i: selfcord.Message, notify_on_mention=False):
     global userColorsCache
     if i.content != "":
         h=HSplit([
@@ -126,6 +126,7 @@ async def create_msg_window(i: selfcord.Message):
             ])))
     if client.user in i.mentions:
         h.style = tc.msgMentionHighlight
+        if notify_on_mention: help.push_notification(i.channel.guild.name + " #"+i.channel.name, i.content) # pyright: ignore
     return h
 
 async def render_messages(cid:int, oldContainer = []):
@@ -314,8 +315,8 @@ async def main():
     async def on_message(i: selfcord.Message):
         global lastUser
         if focusingCh == i.channel.id:
-            h = await create_msg_window(i)
-            windows["messageContent"].content.children.append(h)
+            h = await create_msg_window(i,True)
+            windows["messageContent"].content.children.append()
             lastUser = i.author.id
             app.invalidate()
 

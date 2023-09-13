@@ -6,8 +6,7 @@ import pygments, selfcord
 from nullsafe import undefined,_
 from ninety84 import DisconsoleToken, DshMarkdown, DisconsoleLexer, DisconsoleStyle, ThemeColors
 MessageableChannel = Union[selfcord.TextChannel, selfcord.VoiceChannel, selfcord.StageChannel, selfcord.Thread, selfcord.DMChannel, selfcord.PartialMessageable, selfcord.GroupChannel]
-from prompt_toolkit.layout import FloatContainer, Float, Container 
-from prompt_toolkit.widgets import VerticalLine, HorizontalLine
+from prompt_toolkit.layout import FloatContainer, Float, Container, Window
 
 system = platform.system 
 if system == "Linux" and shutil.which("termux-change-repo") is not None:
@@ -84,10 +83,31 @@ async def format_message(client: selfcord.Client, msg: selfcord.Message):
         h.append((ttype,v))
     return h
 
-def box_container(container:Container, tl="┎",tr="┒",bl="┖",br="┚",lr="┃",tb="━"): ...
+def box_container(container:Container, tl="┎",tr="┒",bl="┖",br="┚",lr="┃",tb="━"): 
+    nein = {"width":1,"height":1}
+    n = nein|{"top":-1}
+    m = nein|{"bottom":-1}
+    return FloatContainer(
+        container,
+        [
+            #side
+            Float(Window(style="class:border",char=lr),0,None,0,-1,1),
+            Float(Window(style="class:border",char=lr),0,-1,0,None,1),
+            Float(Window(style="class:border",char=tb),-1,0,None,0,0,1),
+            Float(Window(style="class:border",char=tb),None,0,-1,0,0,1),
 
-def push_notification(title="Lorem ipsum", content="suichan pettan"):
+            #corn 
+            Float(Window(style="class:border",char=tl),top=-1,**n),
+            Float(Window(style="class:border",char=tr),top=-1,**m),
+            Float(Window(style="class:border",char=bl),bottom=-1,**n),
+            Float(Window(style="class:border",char=br),bottom=-1,**m)
+        ]
+    )
+
+def push_notification(title="Lorem ipsum", content="suichan pettan", type="DshMention"):
     "Create a notification (cross-platform)"
 
     match system:
-        case "Windows": os.system(f'powershell ./windowsNotif.ps1 "{content}" "{title}"')
+        case "Windows": os.system(f'powershell ./windowsNotif.ps1 "{content}" "{title}" {type}')
+
+        case "Termux": os.system(f'termux-notification -t "{title}" -c "{content}"')

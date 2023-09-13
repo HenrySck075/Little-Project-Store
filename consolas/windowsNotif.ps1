@@ -7,8 +7,8 @@ $toastXml.GetElementsByTagName("text").AppendChild($toastXml.CreateTextNode($not
 $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
 $xml.LoadXml($toastXml.OuterXml)
 $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
-$toast.Tag = "Test1"
-$toast.Group = "Test2"
+$toast.Tag = "meow"
+$toast.Group = $args[2]
 $toast.ExpirationTime = [DateTimeOffset]::Now.AddSeconds(5)
 $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($args[1])
 $notifier.Show($toast);
