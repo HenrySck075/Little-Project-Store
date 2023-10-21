@@ -1,8 +1,8 @@
 junk/
 config.json
 test.py
-Minor VTubers.json
-Major VTubers.json
+Minor VTubers.json*
+Major VTubers.json*
 exceptionContent
 *.swp
 __pycache__

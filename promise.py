@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Callable, List, Any
+from typing import Coroutine, Generic, TypeVar, Callable, List, Any
 from typing_extension import Self
 import asyncio
 from inspect import iscoroutinefunction as iscoro
@@ -20,16 +20,16 @@ TResult2 = TypeVar("TResult2", contravariant = True)
 
 class AggregateError(Exception):
     "Class that packs multiple exceptions in one. Used in `Promise`"
-    def __init__(*msg, errors:List[Any]):
+    def __init__(self, *msg, errors:List[Any]):
         super().__init__(*msg)
         self.errors=errors
 #TODO: promise isnt synchronous
 class Promise(Generic[T]):
     "The worst recreation ever exist (due to Python syntax and me)"
-    def __init__(self,status=0,ret:T):
-        self.status=status
-        if status not in range(2): raise ValueError("Invalid status")
-        self.ret=ret
+    def __init__(self,f: Callable[[Callable[[T],None],Callable[[Any],None]],Coroutine[Any, Any, None]|None]):
+        self.func = f
+        # TODO: the
+
 
     def then(self, onfulfilled: Callable[[T],TResult1]|None, onrejected: Callable[[Exception],TResult2]|None) -> Self[TResult1|TResult2]:
         def test(func):
